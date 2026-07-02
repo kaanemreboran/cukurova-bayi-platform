@@ -12,33 +12,62 @@
   </script>
   <style>
     body { font-family: Arial, sans-serif; background: #0a1f3d; color: white; padding: 40px; text-align: center; }
-    h1 { color: #d4af37; }
-    input { padding: 10px; width: 300px; border-radius: 5px; border: none; }
+    h1, h2 { color: #d4af37; }
+    input { padding: 10px; width: 300px; border-radius: 5px; border: none; margin-bottom: 10px; }
     button { padding: 10px 20px; background: #d4af37; color: #0a1f3d; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
     #sonuclar { margin-top: 30px; text-align: left; max-width: 500px; margin-left: auto; margin-right: auto; }
     .urun-karti { background: white; color: #0a1f3d; padding: 15px; margin-bottom: 10px; border-radius: 8px; }
+    #hosgeldin { background: #14335c; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
   </style>
 </head>
 <body>
-<div id="girisEkrani">
-  <h2>Bayi Girişi</h2>
-  <input type="text" id="kullaniciAdi" placeholder="Kullanıcı adı"><br><br>
-  <input type="password" id="sifreGiris" placeholder="Şifre"><br><br>
-  <button onclick="girisYap()">Giriş Yap</button>
-  <p id="girisHata" style="color: red;"></p>
-</div>
 
-<div id="anaEkran" style="display:none;">
-  <p id="hosgeldin"></p>
-</div>
   <h1>Çukurova Otomotiv Bayi Platformu</h1>
-  <p>Ürün adı veya OEM kodu ile arayın:</p>
-  <input type="text" id="aramaKutusu" placeholder="Örn: Fren Balatası">
-  <button onclick="urunAra()">Ara</button>
 
-  <div id="sonuclar"></div>
+  <!-- GİRİŞ EKRANI -->
+  <div id="girisEkrani">
+    <h2>Bayi Girişi</h2>
+    <input type="text" id="kullaniciAdi" placeholder="Kullanıcı adı"><br>
+    <input type="password" id="sifreGiris" placeholder="Şifre"><br>
+    <button onclick="girisYap()">Giriş Yap</button>
+    <p id="girisHata" style="color: #ff6b6b;"></p>
+  </div>
+
+  <!-- GİRİŞ SONRASI EKRAN (başta gizli) -->
+  <div id="anaEkran" style="display:none;">
+    <p id="hosgeldin"></p>
+
+    <p>Ürün adı veya OEM kodu ile arayın:</p>
+    <input type="text" id="aramaKutusu" placeholder="Örn: Fren Balatası">
+    <button onclick="urunAra()">Ara</button>
+
+    <div id="sonuclar"></div>
+  </div>
 
   <script>
+    async function girisYap() {
+      const kullaniciAdi = document.getElementById("kullaniciAdi").value;
+      const sifre = document.getElementById("sifreGiris").value;
+      const hataAlani = document.getElementById("girisHata");
+
+      const { data, error } = await supabaseClient
+        .from("bayiler")
+        .select("*")
+        .eq("kullanici_adi", kullaniciAdi)
+        .eq("sifre", sifre);
+
+      if (error || data.length === 0) {
+        hataAlani.innerHTML = "Kullanıcı adı veya şifre hatalı.";
+        return;
+      }
+
+      const bayi = data[0];
+      document.getElementById("girisEkrani").style.display = "none";
+      document.getElementById("anaEkran").style.display = "block";
+      document.getElementById("hosgeldin").innerHTML =
+        "Hoş geldiniz, " + bayi.firma_adi + "! Bakiyeniz: " + bayi.bakiye + " TL | Kredi Limitiniz: " + bayi.kredi_limiti + " TL";
+    }
+
     async function urunAra() {
       const aranan = document.getElementById("aramaKutusu").value;
       const sonucAlani = document.getElementById("sonuclar");
@@ -71,28 +100,6 @@
         `;
       });
     }
-    async function girisYap() {
-  const kullaniciAdi = document.getElementById("kullaniciAdi").value;
-  const sifre = document.getElementById("sifreGiris").value;
-  const hataAlani = document.getElementById("girisHata");
-
-  const { data, error } = await supabaseClient
-    .from("bayiler")
-    .select("*")
-    .eq("kullanici_adi", kullaniciAdi)
-    .eq("sifre", sifre);
-
-  if (error || data.length === 0) {
-    hataAlani.innerHTML = "Kullanıcı adı veya şifre hatalı.";
-    return;
-  }
-
-  const bayi = data[0];
-  document.getElementById("girisEkrani").style.display = "none";
-  document.getElementById("anaEkran").style.display = "block";
-  document.getElementById("hosgeldin").innerHTML =
-    "Hoş geldiniz, " + bayi.firma_adi + "! Bakiyeniz: " + bayi.bakiye + " TL | Kredi Limitiniz: " + bayi.kredi_limiti + " TL";
-}
   </script>
 
 </body>
