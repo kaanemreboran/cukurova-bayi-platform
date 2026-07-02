@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Çukurova Otomotiv - Bayi Platformu</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const SUPABASE_URL = "https://qtzacqoywboruaevdiwl.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF0emFjcW95d2JvcnVhZXZkaXdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5ODk0ODIsImV4cCI6MjA5ODU2NTQ4Mn0.udq1mcT_p6h8zBpp6GASQc_6jpBWFDHUuWk25DeogPU";
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  </script>
+  <style>
+    body { font-family: Arial, sans-serif; background: #0a1f3d; color: white; padding: 40px; text-align: center; }
+    h1 { color: #d4af37; }
+    input { padding: 10px; width: 300px; border-radius: 5px; border: none; }
+    button { padding: 10px 20px; background: #d4af37; color: #0a1f3d; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+    #sonuclar { margin-top: 30px; text-align: left; max-width: 500px; margin-left: auto; margin-right: auto; }
+    .urun-karti { background: white; color: #0a1f3d; padding: 15px; margin-bottom: 10px; border-radius: 8px; }
+  </style>
+</head>
+<body>
+
+  <h1>Çukurova Otomotiv Bayi Platformu</h1>
+  <p>Ürün adı veya OEM kodu ile arayın:</p>
+  <input type="text" id="aramaKutusu" placeholder="Örn: Fren Balatası">
+  <button onclick="urunAra()">Ara</button>
+
+  <div id="sonuclar"></div>
+
+  <script>
+    async function urunAra() {
+      const aranan = document.getElementById("aramaKutusu").value;
+      const sonucAlani = document.getElementById("sonuclar");
+      sonucAlani.innerHTML = "Aranıyor...";
+
+      const { data, error } = await supabaseClient
+        .from("urunler")
+        .select("*")
+        .ilike("urun_adi", "%" + aranan + "%");
+
+      if (error) {
+        sonucAlani.innerHTML = "Bir hata oluştu: " + error.message;
+        return;
+      }
+
+      if (data.length === 0) {
+        sonucAlani.innerHTML = "Sonuç bulunamadı.";
+        return;
+      }
+
+      sonucAlani.innerHTML = "";
+      data.forEach(function(urun) {
+        sonucAlani.innerHTML += `
+          <div class="urun-karti">
+            <strong>${urun.urun_adi}</strong><br>
+            Marka: ${urun.marka} | Model: ${urun.model} | Yıl: ${urun.yil}<br>
+            OEM Kod: ${urun.oem_kodu}<br>
+            Stok: ${urun.stok_adet} adet | Fiyat: ${urun.fiyat} TL
+          </div>
+        `;
+      });
+    }
+  </script>
+
+</body>
+</html>
