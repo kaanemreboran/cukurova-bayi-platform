@@ -344,6 +344,7 @@
     <div class="nav-item" id="navSepet" onclick="sekmeGoster('sepet')">🛒 <span class="metin">Sepet</span><span class="nav-rozet" id="sepetSayisi" style="display:none;">0</span></div>
     <div class="nav-item" id="navSiparis" onclick="sekmeGoster('siparis')">📦 <span class="metin">Siparişlerim</span></div>
     <div class="nav-item" id="navHesap" onclick="sekmeGoster('hesap')">💳 <span class="metin">Hesabım</span></div>
+    <div class="nav-item" id="navAyarlar" onclick="sekmeGoster('ayarlar')">⚙️ <span class="metin">Ayarlar</span></div>
     <div class="nav-item" id="navPos" onclick="sekmeGoster('pos')">💰 <span class="metin">Ödeme</span></div>
     <div class="nav-item" onclick="cikisYap()">🚪 <span class="metin">Çıkış</span></div>
   </div>
@@ -409,8 +410,21 @@
           </div>
         </div>
         <div id="hesapTabloAlani">Yükleniyor...</div>
+      </div>
 
-        <div class="pos-kutu" style="margin-top:24px;">
+      <!-- AYARLAR SEKMESİ -->
+      <div id="ayarlarSekmesi" class="sekme-icerik">
+        <h2 class="baslik">⚙️ Ayarlarım</h2>
+
+        <div class="pos-kutu" style="margin-bottom:20px;">
+          <h3 style="font-size:15px; margin-bottom:14px; color:var(--navy);">📋 Bilgilerim</h3>
+          <input type="text" id="ayarTelefonGiris" placeholder="Telefon" style="width:100%; padding:12px 14px; margin-bottom:10px; border:1px solid var(--border); border-radius:8px; font-size:14px;">
+          <input type="text" id="ayarKullaniciAdiGiris" placeholder="Kullanıcı Adı" style="width:100%; padding:12px 14px; margin-bottom:10px; border:1px solid var(--border); border-radius:8px; font-size:14px;">
+          <button onclick="bilgileriGuncelle()">Bilgileri Güncelle</button>
+          <p id="bilgiGuncelleMesaj" style="margin-top:10px; font-size:13px; font-weight:bold;"></p>
+        </div>
+
+        <div class="pos-kutu">
           <h3 style="font-size:15px; margin-bottom:14px; color:var(--navy);">🔑 Şifre Değiştir</h3>
           <input type="password" id="eskiSifreGiris" placeholder="Mevcut şifreniz" style="width:100%; padding:12px 14px; margin-bottom:10px; border:1px solid var(--border); border-radius:8px; font-size:14px;">
           <input type="password" id="yeniSifreGiris" placeholder="Yeni şifre" style="width:100%; padding:12px 14px; margin-bottom:10px; border:1px solid var(--border); border-radius:8px; font-size:14px;">
@@ -470,12 +484,13 @@
       sepet: "Sepetim",
       siparis: "Siparişlerim",
       hesap: "Hesabım",
+      ayarlar: "Ayarlar",
       pos: "Ödeme"
     };
 
     async function sekmeGoster(hangisi) {
-      const sekmeler = { arama: "aramaSekmesi", sepet: "sepetSekmesi", siparis: "siparisSekmesi", hesap: "hesapSekmesi", pos: "posSekmesi" };
-      const navlar = { arama: "navArama", sepet: "navSepet", siparis: "navSiparis", hesap: "navHesap", pos: "navPos" };
+      const sekmeler = { arama: "aramaSekmesi", sepet: "sepetSekmesi", siparis: "siparisSekmesi", hesap: "hesapSekmesi", ayarlar: "ayarlarSekmesi", pos: "posSekmesi" };
+      const navlar = { arama: "navArama", sepet: "navSepet", siparis: "navSiparis", hesap: "navHesap", ayarlar: "navAyarlar", pos: "navPos" };
 
       Object.keys(sekmeler).forEach(function(key) {
         document.getElementById(sekmeler[key]).classList.remove("aktif-icerik");
@@ -489,6 +504,7 @@
       if (hangisi === 'hesap') { await bayiBilgisiniTazele(); hesapHareketleriGetir(); }
       if (hangisi === 'siparis') siparislerimGetir();
       if (hangisi === 'sepet') bayiBilgisiniTazele();
+      if (hangisi === 'ayarlar') { await bayiBilgisiniTazele(); ayarlariDoldur(); }
     }
 
     async function girisYap() {
@@ -839,6 +855,43 @@
           </tbody>
         </table>
       `;
+    }
+
+    function ayarlariDoldur() {
+      document.getElementById("ayarTelefonGiris").value = girisYapanBayi.telefon || "";
+      document.getElementById("ayarKullaniciAdiGiris").value = girisYapanBayi.kullanici_adi || "";
+      document.getElementById("bilgiGuncelleMesaj").innerHTML = "";
+    }
+
+    async function bilgileriGuncelle() {
+      const yeniTelefon = document.getElementById("ayarTelefonGiris").value.trim();
+      const yeniKullaniciAdi = document.getElementById("ayarKullaniciAdiGiris").value.trim();
+      const mesajAlani = document.getElementById("bilgiGuncelleMesaj");
+      mesajAlani.innerHTML = "";
+
+      if (!yeniKullaniciAdi) {
+        mesajAlani.style.color = "var(--danger)";
+        mesajAlani.innerHTML = "Kullanıcı adı boş olamaz.";
+        return;
+      }
+
+      const { error } = await supabaseClient
+        .from("bayiler")
+        .update({ telefon: yeniTelefon, kullanici_adi: yeniKullaniciAdi })
+        .eq("id", girisYapanBayi.id);
+
+      if (error) {
+        mesajAlani.style.color = "var(--danger)";
+        mesajAlani.innerHTML = "Hata: " + error.message;
+        return;
+      }
+
+      girisYapanBayi.telefon = yeniTelefon;
+      girisYapanBayi.kullanici_adi = yeniKullaniciAdi;
+      localStorage.setItem("cukurovaBayiOturum", JSON.stringify(girisYapanBayi));
+
+      mesajAlani.style.color = "var(--success)";
+      mesajAlani.innerHTML = "Bilgileriniz güncellendi. Not: Kullanıcı adınızı değiştirdiyseniz, bir sonraki girişte yeni kullanıcı adınızı kullanın.";
     }
 
     async function sifreDegistir() {
