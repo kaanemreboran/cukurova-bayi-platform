@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Yönetim Paneli - Çukurova Otomotiv</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const SUPABASE_URL = "https://qtzacqoywboruaevdiwl.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF0emFjcW95d2JvcnVhZXZkaXdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5ODk0ODIsImV4cCI6MjA5ODU2NTQ4Mn0.udq1mcT_p6h8zBpp6GASQc_6jpBWFDHUuWk25DeogPU";
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  </script>
+  <style>
+    :root {
+      --navy: #0a1f3d;
+      --navy-light: #14335c;
+      --gold: #c9a227;
+      --gold-light: #e0c157;
+      --gray-bg: #f2f4f7;
+      --border: #e5e8ee;
+      --text-muted: #7c8698;
+      --danger: #c0392b;
+      --success: #2e7d32;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: var(--gray-bg);
+      color: var(--navy);
+      display: flex;
+      min-height: 100vh;
+    }
+    button {
+      background: var(--navy);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 14px;
+      padding: 10px 18px;
+    }
+    button:hover { background: var(--navy-light); }
+    .ekle-btn { background: var(--success); }
+    .ekle-btn:hover { background: #256428; }
+    .sil-btn { background: var(--danger); padding: 6px 12px; font-size: 12px; }
+    .sil-btn:hover { background: #a5301f; }
+    .duzenle-btn { background: #b8860b; padding: 6px 12px; font-size: 12px; }
+    .duzenle-btn:hover { background: #96690a; }
+    input, select {
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 14px;
+      width: 100%;
+    }
+
+    /* GİRİŞ */
+    #girisEkrani {
+      width: 100%; min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      background: linear-gradient(135deg, var(--navy), var(--navy-light));
+    }
+    .giris-kutu {
+      background: white; padding: 40px 35px; border-radius: 14px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.25); text-align: center; width: 340px;
+    }
+    .giris-kutu img { height: 60px; margin-bottom: 10px; }
+    .giris-kutu p.altyazi { font-weight: bold; color: var(--navy); margin-bottom: 4px; font-size: 15px; }
+    .giris-kutu h2 { font-size: 16px; color: var(--text-muted); margin-bottom: 20px; font-weight: 600; }
+    .giris-kutu input { margin-bottom: 12px; }
+    .giris-kutu button { width: 100%; padding: 13px; margin-top: 6px; }
+    #girisHata { color: var(--danger); font-weight: bold; margin-top: 10px; font-size: 13px; }
+
+    /* SIDEBAR */
+    #sidebar {
+      width: 220px; background: var(--navy); color: white;
+      display: flex; flex-direction: column; flex-shrink: 0;
+    }
+    .sidebar-logo {
+      display: flex; align-items: center; gap: 10px; padding: 22px 20px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .sidebar-logo img { height: 34px; }
+    .sidebar-logo span { font-weight: bold; font-size: 13px; line-height: 1.3; }
+    .nav-item {
+      display: flex; align-items: center; gap: 12px; padding: 14px 22px;
+      color: rgba(255,255,255,0.75); cursor: pointer; font-size: 14px; font-weight: 600;
+      border-left: 4px solid transparent;
+    }
+    .nav-item:hover { background: rgba(255,255,255,0.06); color: white; }
+    .nav-item.aktif { background: rgba(201,162,39,0.12); color: var(--gold-light); border-left: 4px solid var(--gold); }
+
+    /* ANA İÇERİK */
+    #anaIcerik { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    #topbar {
+      background: white; border-bottom: 1px solid var(--border); padding: 16px 28px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    #topbar h1 { font-size: 18px; }
+    #icerikAlani { padding: 26px 28px; flex: 1; }
+    .sekme-icerik { display: none; }
+    .sekme-icerik.aktif-icerik { display: block; }
+
+    .form-kutu {
+      background: white; padding: 20px; border-radius: 10px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.05); margin-bottom: 20px;
+    }
+    .form-kutu h3 { font-size: 15px; margin-bottom: 14px; color: var(--navy); }
+    .form-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 10px; margin-bottom: 12px;
+    }
+    .form-butonlar { display: flex; gap: 10px; margin-top: 6px; }
+
+    table.veri-tablosu {
+      width: 100%; border-collapse: collapse; background: white;
+      border-radius: 10px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+    }
+    table.veri-tablosu th {
+      background: var(--navy); color: white; padding: 10px; font-size: 12px; text-align: left;
+    }
+    table.veri-tablosu td { padding: 10px; font-size: 13px; border-bottom: 1px solid var(--border); }
+    table.veri-tablosu td.aksiyonlar { display: flex; gap: 6px; }
+    .durum-secim { padding: 5px 8px; font-size: 12px; border-radius: 6px; }
+  </style>
+</head>
+<body>
+
+  <!-- GİRİŞ EKRANI -->
+  <div id="girisEkrani">
+    <div class="giris-kutu">
+      <img src="logo.png" alt="Logo">
+      <p class="altyazi">Çukurova Otomotiv ve Yedek Parça</p>
+      <h2>Yönetim Paneli Girişi</h2>
+      <input type="text" id="yKullaniciAdi" placeholder="Kullanıcı adı">
+      <input type="password" id="ySifre" placeholder="Şifre">
+      <button onclick="yoneticiGirisYap()" style="width:100%;">Giriş Yap</button>
+      <p id="girisHata"></p>
+    </div>
+  </div>
+
+  <!-- ADMIN ARAYÜZÜ -->
+  <div id="sidebar" style="display:none;">
+    <div class="sidebar-logo">
+      <img src="logo.png" alt="Logo">
+      <span>Yönetim Paneli</span>
+    </div>
+    <div class="nav-item aktif" onclick="sekmeGoster('urunler')">📦 Ürünler</div>
+    <div class="nav-item" onclick="sekmeGoster('bayiler')">🏢 Bayiler</div>
+    <div class="nav-item" onclick="sekmeGoster('siparisler')">🧾 Siparişler</div>
+    <div class="nav-item" onclick="sekmeGoster('hesaplar')">💳 Hesap Hareketleri</div>
+    <div class="nav-item" onclick="cikisYap()">🚪 Çıkış</div>
+  </div>
+
+  <div id="anaIcerik" style="display:none;">
+    <div id="topbar">
+      <h1 id="topbarBaslik">Ürünler</h1>
+      <div id="topbarYonetici" style="font-size:13px; color:var(--text-muted); font-weight:bold;"></div>
+    </div>
+
+    <div id="icerikAlani">
+
+      <!-- ÜRÜNLER -->
+      <div id="urunlerSekmesi" class="sekme-icerik aktif-icerik">
+        <div class="form-kutu">
+          <h3 id="urunFormBaslik">Yeni Ürün Ekle</h3>
+          <input type="hidden" id="urunDuzenleId">
+          <div class="form-grid">
+            <input type="text" id="urunAdiGiris" placeholder="Ürün adı">
+            <input type="text" id="oemKoduGiris" placeholder="OEM Kodu">
+            <input type="text" id="markaGiris" placeholder="Marka">
+            <input type="text" id="modelGiris" placeholder="Model">
+            <input type="text" id="yilGiris" placeholder="Yıl">
+            <input type="number" id="stokGiris" placeholder="Stok Adedi">
+            <input type="number" id="fiyatGiris" placeholder="Fiyat (TL)">
+            <input type="text" id="resimUrlGiris" placeholder="Resim URL (opsiyonel)">
+          </div>
+          <div class="form-butonlar">
+            <button class="ekle-btn" onclick="urunKaydet()" id="urunKaydetBtn">Ürünü Ekle</button>
+            <button onclick="urunFormTemizle()" style="background:#999;">Temizle</button>
+          </div>
+        </div>
+        <div id="urunlerTabloAlani">Yükleniyor...</div>
+      </div>
+
+      <!-- BAYİLER -->
+      <div id="bayilerSekmesi" class="sekme-icerik">
+        <div class="form-kutu">
+          <h3 id="bayiFormBaslik">Yeni Bayi Ekle</h3>
+          <input type="hidden" id="bayiDuzenleId">
+          <div class="form-grid">
+            <input type="text" id="firmaAdiGiris" placeholder="Firma Adı">
+            <input type="text" id="yetkiliKisiGiris" placeholder="Yetkili Kişi">
+            <input type="text" id="telefonGiris" placeholder="Telefon">
+            <input type="text" id="bKullaniciAdiGiris" placeholder="Kullanıcı Adı">
+            <input type="text" id="bSifreGiris" placeholder="Şifre">
+            <input type="number" id="bakiyeGiris" placeholder="Bakiye (TL)">
+            <input type="number" id="krediLimitiGiris" placeholder="Kredi Limiti (TL)">
+          </div>
+          <div class="form-butonlar">
+            <button class="ekle-btn" onclick="bayiKaydet()" id="bayiKaydetBtn">Bayiyi Ekle</button>
+            <button onclick="bayiFormTemizle()" style="background:#999;">Temizle</button>
+          </div>
+        </div>
+        <div id="bayilerTabloAlani">Yükleniyor...</div>
+      </div>
+
+      <!-- SİPARİŞLER -->
+      <div id="siparislerSekmesi" class="sekme-icerik">
+        <div id="siparislerTabloAlani">Yükleniyor...</div>
+      </div>
+
+      <!-- HESAP HAREKETLERİ -->
+      <div id="hesaplarSekmesi" class="sekme-icerik">
+        <div class="form-kutu">
+          <h3>Hesap Hareketi Ekle</h3>
+          <div class="form-grid">
+            <select id="hesapBayiSecim"></select>
+            <input type="date" id="hesapTarihGiris">
+            <input type="text" id="hesapAciklamaGiris" placeholder="Açıklama (Fatura, Ödeme...)">
+            <input type="text" id="hesapEvrakGiris" placeholder="Evrak No (opsiyonel)">
+            <input type="number" id="hesapBorcGiris" placeholder="Borç (TL)">
+            <input type="number" id="hesapAlacakGiris" placeholder="Alacak (TL)">
+          </div>
+          <div class="form-butonlar">
+            <button class="ekle-btn" onclick="hesapHareketiEkle()">Hareketi Kaydet</button>
+          </div>
+        </div>
+        <div class="form-kutu">
+          <h3>Bayi Seç ve Hareketlerini Görüntüle</h3>
+          <select id="hesapGoruntuleBayi" onchange="hesapHareketleriniGetir()"></select>
+        </div>
+        <div id="hesaplarTabloAlani"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    let yonetici = null;
+    let urunlerCache = [];
+    let bayilerCache = [];
+
+    const sekmeBasliklari = {
+      urunler: "Ürünler",
+      bayiler: "Bayiler",
+      siparisler: "Siparişler",
+      hesaplar: "Hesap Hareketleri"
+    };
+
+    function sekmeGoster(hangisi) {
+      document.querySelectorAll(".sekme-icerik").forEach(el => el.classList.remove("aktif-icerik"));
+      document.querySelectorAll(".nav-item").forEach(el => el.classList.remove("aktif"));
+      document.getElementById(hangisi + "Sekmesi").classList.add("aktif-icerik");
+      event.currentTarget.classList.add("aktif");
+      document.getElementById("topbarBaslik").innerText = sekmeBasliklari[hangisi];
+
+      if (hangisi === 'urunler') urunleriGetir();
+      if (hangisi === 'bayiler') bayileriGetir();
+      if (hangisi === 'siparisler') siparislerGetir();
+      if (hangisi === 'hesaplar') hesapSekmesiHazirla();
+    }
+
+    async function yoneticiGirisYap() {
+      const kullaniciAdi = document.getElementById("yKullaniciAdi").value;
+      const sifre = document.getElementById("ySifre").value;
+      const hataAlani = document.getElementById("girisHata");
+
+      const { data, error } = await supabaseClient
+        .from("yoneticiler")
+        .select("*")
+        .eq("kullanici_adi", kullaniciAdi)
+        .eq("sifre", sifre);
+
+      if (error || data.length === 0) {
+        hataAlani.innerHTML = "Kullanıcı adı veya şifre hatalı.";
+        return;
+      }
+
+      yonetici = data[0];
+      localStorage.setItem("cukurovaYoneticiOturum", JSON.stringify(yonetici));
+      ekraniAc();
+    }
+
+    function ekraniAc() {
+      document.getElementById("girisEkrani").style.display = "none";
+      document.getElementById("sidebar").style.display = "flex";
+      document.getElementById("anaIcerik").style.display = "flex";
+      document.getElementById("anaIcerik").style.flexDirection = "column";
+      document.getElementById("topbarYonetici").innerText = "👤 " + (yonetici.ad || yonetici.kullanici_adi);
+      urunleriGetir();
+    }
+
+    function cikisYap() {
+      yonetici = null;
+      localStorage.removeItem("cukurovaYoneticiOturum");
+      document.getElementById("girisEkrani").style.display = "flex";
+      document.getElementById("sidebar").style.display = "none";
+      document.getElementById("anaIcerik").style.display = "none";
+      document.getElementById("yKullaniciAdi").value = "";
+      document.getElementById("ySifre").value = "";
+    }
+
+    window.addEventListener("DOMContentLoaded", function() {
+      const kayitli = localStorage.getItem("cukurovaYoneticiOturum");
+      if (kayitli) {
+        yonetici = JSON.parse(kayitli);
+        ekraniAc();
+      }
+    });
+
+    /* ---------------- ÜRÜNLER ---------------- */
+    async function urunleriGetir() {
+      const alan = document.getElementById("urunlerTabloAlani");
+      alan.innerHTML = "Yükleniyor...";
+
+      const { data, error } = await supabaseClient.from("urunler").select("*").order("id", { ascending: false });
+      if (error) { alan.innerHTML = "Hata: " + error.message; return; }
+
+      urunlerCache = data;
+
+      if (data.length === 0) { alan.innerHTML = "<p>Henüz ürün eklenmemiş.</p>"; return; }
+
+      let satirlar = "";
+      data.forEach(function(u) {
+        satirlar += `
+          <tr>
+            <td>${u.urun_adi}</td>
+            <td>${u.oem_kodu || "-"}</td>
+            <td>${u.marka || "-"}</td>
+            <td>${u.model || "-"}</td>
+            <td>${u.stok_adet}</td>
+            <td>${u.fiyat} TL</td>
+            <td class="aksiyonlar">
+              <button class="duzenle-btn" onclick="urunDuzenle(${u.id})">Düzenle</button>
+              <button class="sil-btn" onclick="urunSil(${u.id})">Sil</button>
+            </td>
+          </tr>
+        `;
+      });
+
+      alan.innerHTML = `
+        <table class="veri-tablosu">
+          <thead><tr><th>Ürün Adı</th><th>OEM Kod</th><th>Marka</th><th>Model</th><th>Stok</th><th>Fiyat</th><th>İşlem</th></tr></thead>
+          <tbody>${satirlar}</tbody>
+        </table>
+      `;
+    }
+
+    function urunDuzenle(id) {
+      const u = urunlerCache.find(x => x.id === id);
+      if (!u) return;
+      document.getElementById("urunDuzenleId").value = u.id;
+      document.getElementById("urunAdiGiris").value = u.urun_adi || "";
+      document.getElementById("oemKoduGiris").value = u.oem_kodu || "";
+      document.getElementById("markaGiris").value = u.marka || "";
+      document.getElementById("modelGiris").value = u.model || "";
+      document.getElementById("yilGiris").value = u.yil || "";
+      document.getElementById("stokGiris").value = u.stok_adet || "";
+      document.getElementById("fiyatGiris").value = u.fiyat || "";
+      document.getElementById("resimUrlGiris").value = u.resim_url || "";
+      document.getElementById("urunFormBaslik").innerText = "Ürünü Düzenle";
+      document.getElementById("urunKaydetBtn").innerText = "Güncelle";
+      window.scrollTo(0, 0);
+    }
+
+    function urunFormTemizle() {
+      document.getElementById("urunDuzenleId").value = "";
+      ["urunAdiGiris","oemKoduGiris","markaGiris","modelGiris","yilGiris","stokGiris","fiyatGiris","resimUrlGiris"]
+        .forEach(id => document.getElementById(id).value = "");
+      document.getElementById("urunFormBaslik").innerText = "Yeni Ürün Ekle";
+      document.getElementById("urunKaydetBtn").innerText = "Ürünü Ekle";
+    }
+
+    async function urunKaydet() {
+      const id = document.getElementById("urunDuzenleId").value;
+      const kayit = {
+        urun_adi: document.getElementById("urunAdiGiris").value,
+        oem_kodu: document.getElementById("oemKoduGiris").value,
+        marka: document.getElementById("markaGiris").value,
+        model: document.getElementById("modelGiris").value,
+        yil: document.getElementById("yilGiris").value,
+        stok_adet: parseInt(document.getElementById("stokGiris").value) || 0,
+        fiyat: parseFloat(document.getElementById("fiyatGiris").value) || 0,
+        resim_url: document.getElementById("resimUrlGiris").value
+      };
+
+      if (!kayit.urun_adi) { alert("Ürün adı boş olamaz."); return; }
+
+      let hata;
+      if (id) {
+        const sonuc = await supabaseClient.from("urunler").update(kayit).eq("id", id);
+        hata = sonuc.error;
+      } else {
+        const sonuc = await supabaseClient.from("urunler").insert(kayit);
+        hata = sonuc.error;
+      }
+
+      if (hata) { alert("Hata: " + hata.message); return; }
+
+      urunFormTemizle();
+      urunleriGetir();
+    }
+
+    async function urunSil(id) {
+      if (!confirm("Bu ürünü silmek istediğinize emin misiniz?")) return;
+      const { error } = await supabaseClient.from("urunler").delete().eq("id", id);
+      if (error) { alert("Hata: " + error.message); return; }
+      urunleriGetir();
+    }
+
+    /* ---------------- BAYİLER ---------------- */
+    async function bayileriGetir() {
+      const alan = document.getElementById("bayilerTabloAlani");
+      alan.innerHTML = "Yükleniyor...";
+
+      const { data, error } = await supabaseClient.from("bayiler").select("*").order("id", { ascending: false });
+      if (error) { alan.innerHTML = "Hata: " + error.message; return; }
+
+      bayilerCache = data;
+
+      if (data.length === 0) { alan.innerHTML = "<p>Henüz bayi eklenmemiş.</p>"; return; }
+
+      let satirlar = "";
+      data.forEach(function(b) {
+        satirlar += `
+          <tr>
+            <td>${b.firma_adi}</td>
+            <td>${b.yetkili_kisi || "-"}</td>
+            <td>${b.telefon || "-"}</td>
+            <td>${b.kullanici_adi}</td>
+            <td>${b.bakiye} TL</td>
+            <td>${b.kredi_limiti} TL</td>
+            <td class="aksiyonlar">
+              <button class="duzenle-btn" onclick="bayiDuzenle(${b.id})">Düzenle</button>
+              <button class="sil-btn" onclick="bayiSil(${b.id})">Sil</button>
+            </td>
+          </tr>
+        `;
+      });
+
+      alan.innerHTML = `
+        <table class="veri-tablosu">
+          <thead><tr><th>Firma Adı</th><th>Yetkili</th><th>Telefon</th><th>Kullanıcı Adı</th><th>Bakiye</th><th>Kredi Limiti</th><th>İşlem</th></tr></thead>
+          <tbody>${satirlar}</tbody>
+        </table>
+      `;
+    }
+
+    function bayiDuzenle(id) {
+      const b = bayilerCache.find(x => x.id === id);
+      if (!b) return;
+      document.getElementById("bayiDuzenleId").value = b.id;
+      document.getElementById("firmaAdiGiris").value = b.firma_adi || "";
+      document.getElementById("yetkiliKisiGiris").value = b.yetkili_kisi || "";
+      document.getElementById("telefonGiris").value = b.telefon || "";
+      document.getElementById("bKullaniciAdiGiris").value = b.kullanici_adi || "";
+      document.getElementById("bSifreGiris").value = b.sifre || "";
+      document.getElementById("bakiyeGiris").value = b.bakiye || "";
+      document.getElementById("krediLimitiGiris").value = b.kredi_limiti || "";
+      document.getElementById("bayiFormBaslik").innerText = "Bayiyi Düzenle";
+      document.getElementById("bayiKaydetBtn").innerText = "Güncelle";
+      window.scrollTo(0, 0);
+    }
+
+    function bayiFormTemizle() {
+      document.getElementById("bayiDuzenleId").value = "";
+      ["firmaAdiGiris","yetkiliKisiGiris","telefonGiris","bKullaniciAdiGiris","bSifreGiris","bakiyeGiris","krediLimitiGiris"]
+        .forEach(id => document.getElementById(id).value = "");
+      document.getElementById("bayiFormBaslik").innerText = "Yeni Bayi Ekle";
+      document.getElementById("bayiKaydetBtn").innerText = "Bayiyi Ekle";
+    }
+
+    async function bayiKaydet() {
+      const id = document.getElementById("bayiDuzenleId").value;
+      const kayit = {
+        firma_adi: document.getElementById("firmaAdiGiris").value,
+        yetkili_kisi: document.getElementById("yetkiliKisiGiris").value,
+        telefon: document.getElementById("telefonGiris").value,
+        kullanici_adi: document.getElementById("bKullaniciAdiGiris").value.trim(),
+        sifre: document.getElementById("bSifreGiris").value.trim(),
+        bakiye: parseFloat(document.getElementById("bakiyeGiris").value) || 0,
+        kredi_limiti: parseFloat(document.getElementById("krediLimitiGiris").value) || 0
+      };
+
+      if (!kayit.firma_adi || !kayit.kullanici_adi || !kayit.sifre) {
+        alert("Firma adı, kullanıcı adı ve şifre boş olamaz.");
+        return;
+      }
+
+      let hata;
+      if (id) {
+        const sonuc = await supabaseClient.from("bayiler").update(kayit).eq("id", id);
+        hata = sonuc.error;
+      } else {
+        const sonuc = await supabaseClient.from("bayiler").insert(kayit);
+        hata = sonuc.error;
+      }
+
+      if (hata) { alert("Hata: " + hata.message); return; }
+
+      bayiFormTemizle();
+      bayileriGetir();
+    }
+
+    async function bayiSil(id) {
+      if (!confirm("Bu bayiyi silmek istediğinize emin misiniz?")) return;
+      const { error } = await supabaseClient.from("bayiler").delete().eq("id", id);
+      if (error) { alert("Hata: " + error.message); return; }
+      bayileriGetir();
+    }
+
+    /* ---------------- SİPARİŞLER ---------------- */
+    async function siparislerGetir() {
+      const alan = document.getElementById("siparislerTabloAlani");
+      alan.innerHTML = "Yükleniyor...";
+
+      const siparisSonuc = await supabaseClient
+        .from("siparisler")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (siparisSonuc.error) { alan.innerHTML = "Hata: " + siparisSonuc.error.message; return; }
+      const data = siparisSonuc.data;
+
+      if (bayilerCache.length === 0) {
+        const bayiSonuc = await supabaseClient.from("bayiler").select("*");
+        bayilerCache = bayiSonuc.data || [];
+      }
+
+      if (!data || data.length === 0) { alan.innerHTML = "<p>Henüz sipariş yok.</p>"; return; }
+
+      let satirlar = "";
+      data.forEach(function(s) {
+        const tarih = s.created_at ? s.created_at.split("T")[0] : "-";
+        const bayi = bayilerCache.find(b => b.id === s.bayi_id);
+        const firmaAdi = bayi ? bayi.firma_adi : "-";
+        satirlar += `
+          <tr>
+            <td>${tarih}</td>
+            <td>${firmaAdi}</td>
+            <td>${s.urun_adi || "-"}</td>
+            <td>${s.adet}</td>
+            <td>${s.tutar || "-"} TL</td>
+            <td>
+              <select class="durum-secim" onchange="siparisDurumGuncelle(${s.id}, 'durum', this.value)">
+                <option value="beklemede" ${s.durum === 'beklemede' ? 'selected' : ''}>Beklemede</option>
+                <option value="onaylandi" ${s.durum === 'onaylandi' ? 'selected' : ''}>Onaylandı</option>
+                <option value="kargolandi" ${s.durum === 'kargolandi' ? 'selected' : ''}>Kargolandı</option>
+                <option value="teslim edildi" ${s.durum === 'teslim edildi' ? 'selected' : ''}>Teslim Edildi</option>
+              </select>
+            </td>
+            <td>
+              <select class="durum-secim" onchange="siparisDurumGuncelle(${s.id}, 'odeme_durumu', this.value)">
+                <option value="Ödenmedi" ${s.odeme_durumu === 'Ödenmedi' ? 'selected' : ''}>Ödenmedi</option>
+                <option value="Ödendi" ${s.odeme_durumu === 'Ödendi' ? 'selected' : ''}>Ödendi</option>
+              </select>
+            </td>
+          </tr>
+        `;
+      });
+
+      alan.innerHTML = `
+        <table class="veri-tablosu">
+          <thead><tr><th>Tarih</th><th>Bayi</th><th>Ürün</th><th>Adet</th><th>Tutar</th><th>Sipariş Durumu</th><th>Ödeme Durumu</th></tr></thead>
+          <tbody>${satirlar}</tbody>
+        </table>
+      `;
+    }
+
+    async function siparisDurumGuncelle(id, alan, deger) {
+      const guncelleme = {};
+      guncelleme[alan] = deger;
+      const { error } = await supabaseClient.from("siparisler").update(guncelleme).eq("id", id);
+      if (error) alert("Hata: " + error.message);
+    }
+
+    /* ---------------- HESAP HAREKETLERİ ---------------- */
+    async function hesapSekmesiHazirla() {
+      if (bayilerCache.length === 0) {
+        const { data } = await supabaseClient.from("bayiler").select("*").order("firma_adi");
+        bayilerCache = data || [];
+      }
+      const secim1 = document.getElementById("hesapBayiSecim");
+      const secim2 = document.getElementById("hesapGoruntuleBayi");
+      let secenekler = "<option value=''>Bayi seçin</option>";
+      bayilerCache.forEach(b => {
+        secenekler += `<option value="${b.id}">${b.firma_adi}</option>`;
+      });
+      secim1.innerHTML = secenekler;
+      secim2.innerHTML = secenekler;
+
+      const bugun = new Date().toISOString().split("T")[0];
+      document.getElementById("hesapTarihGiris").value = bugun;
+    }
+
+    async function hesapHareketiEkle() {
+      const bayiId = document.getElementById("hesapBayiSecim").value;
+      if (!bayiId) { alert("Lütfen bir bayi seçin."); return; }
+
+      const kayit = {
+        bayi_id: parseInt(bayiId),
+        tarih: document.getElementById("hesapTarihGiris").value,
+        aciklama: document.getElementById("hesapAciklamaGiris").value,
+        evrak_no: document.getElementById("hesapEvrakGiris").value,
+        borc: parseFloat(document.getElementById("hesapBorcGiris").value) || 0,
+        alacak: parseFloat(document.getElementById("hesapAlacakGiris").value) || 0
+      };
+
+      const { error } = await supabaseClient.from("hesap_hareketleri").insert(kayit);
+      if (error) { alert("Hata: " + error.message); return; }
+
+      document.getElementById("hesapAciklamaGiris").value = "";
+      document.getElementById("hesapEvrakGiris").value = "";
+      document.getElementById("hesapBorcGiris").value = "";
+      document.getElementById("hesapAlacakGiris").value = "";
+
+      alert("Hesap hareketi kaydedildi.");
+
+      if (document.getElementById("hesapGoruntuleBayi").value === bayiId) {
+        hesapHareketleriniGetir();
+      }
+    }
+
+    async function hesapHareketleriniGetir() {
+      const bayiId = document.getElementById("hesapGoruntuleBayi").value;
+      const alan = document.getElementById("hesaplarTabloAlani");
+      if (!bayiId) { alan.innerHTML = ""; return; }
+
+      alan.innerHTML = "Yükleniyor...";
+
+      const { data, error } = await supabaseClient
+        .from("hesap_hareketleri")
+        .select("*")
+        .eq("bayi_id", bayiId)
+        .order("tarih", { ascending: true });
+
+      if (error) { alan.innerHTML = "Hata: " + error.message; return; }
+      if (!data || data.length === 0) { alan.innerHTML = "<p>Bu bayi için hareket yok.</p>"; return; }
+
+      let bakiye = 0;
+      let satirlar = "";
+      data.forEach(function(h) {
+        const borc = parseFloat(h.borc) || 0;
+        const alacak = parseFloat(h.alacak) || 0;
+        bakiye += borc - alacak;
+        satirlar += `
+          <tr>
+            <td>${h.tarih}</td>
+            <td>${h.aciklama}</td>
+            <td>${h.evrak_no || "-"}</td>
+            <td>${borc > 0 ? borc + " TL" : "-"}</td>
+            <td>${alacak > 0 ? alacak + " TL" : "-"}</td>
+            <td>${bakiye} TL</td>
+            <td><button class="sil-btn" onclick="hesapHareketiSil(${h.id})">Sil</button></td>
+          </tr>
+        `;
+      });
+
+      alan.innerHTML = `
+        <table class="veri-tablosu">
+          <thead><tr><th>Tarih</th><th>Açıklama</th><th>Evrak No</th><th>Borç</th><th>Alacak</th><th>Bakiye</th><th>İşlem</th></tr></thead>
+          <tbody>${satirlar}</tbody>
+        </table>
+      `;
+    }
+
+    async function hesapHareketiSil(id) {
+      if (!confirm("Bu hareketi silmek istediğinize emin misiniz?")) return;
+      const { error } = await supabaseClient.from("hesap_hareketleri").delete().eq("id", id);
+      if (error) { alert("Hata: " + error.message); return; }
+      hesapHareketleriniGetir();
+    }
+  </script>
+
+</body>
+</html>
