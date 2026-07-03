@@ -285,6 +285,7 @@
     }
     .durum-odendi { background: var(--success); }
     .durum-odenmedi { background: var(--danger); }
+    .durum-beklemede { background: #d4a017; color: #3a2c00; }
 
     /* POS / Ödeme */
     .pos-kutu {
@@ -663,7 +664,7 @@
         const odemeSinifi = siparis.odeme_durumu === "Ödendi" ? "durum-odendi" : "durum-odenmedi";
         const odemeDurumu = siparis.odeme_durumu || "Ödenmedi";
         const siparisDurumuMetin = durumMetinleri[siparis.durum] || siparis.durum;
-        const siparisSinifi = siparis.durum === "beklemede" ? "durum-odenmedi" : "durum-odendi";
+        const siparisSinifi = siparis.durum === "beklemede" ? "durum-beklemede" : "durum-odendi";
 
         satirlar += `
           <tr>
