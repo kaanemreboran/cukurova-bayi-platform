@@ -409,6 +409,15 @@
           </div>
         </div>
         <div id="hesapTabloAlani">Yükleniyor...</div>
+
+        <div class="pos-kutu" style="margin-top:24px;">
+          <h3 style="font-size:15px; margin-bottom:14px; color:var(--navy);">🔑 Şifre Değiştir</h3>
+          <input type="password" id="eskiSifreGiris" placeholder="Mevcut şifreniz" style="width:100%; padding:12px 14px; margin-bottom:10px; border:1px solid var(--border); border-radius:8px; font-size:14px;">
+          <input type="password" id="yeniSifreGiris" placeholder="Yeni şifre" style="width:100%; padding:12px 14px; margin-bottom:10px; border:1px solid var(--border); border-radius:8px; font-size:14px;">
+          <input type="password" id="yeniSifreTekrarGiris" placeholder="Yeni şifre (tekrar)" style="width:100%; padding:12px 14px; margin-bottom:10px; border:1px solid var(--border); border-radius:8px; font-size:14px;">
+          <button onclick="sifreDegistir()">Şifreyi Güncelle</button>
+          <p id="sifreDegistirMesaj" style="margin-top:10px; font-size:13px; font-weight:bold;"></p>
+        </div>
       </div>
 
       <!-- POS / ÖDEME SEKMESİ -->
@@ -830,6 +839,59 @@
           </tbody>
         </table>
       `;
+    }
+
+    async function sifreDegistir() {
+      const eskiSifre = document.getElementById("eskiSifreGiris").value.trim();
+      const yeniSifre = document.getElementById("yeniSifreGiris").value.trim();
+      const yeniSifreTekrar = document.getElementById("yeniSifreTekrarGiris").value.trim();
+      const mesajAlani = document.getElementById("sifreDegistirMesaj");
+
+      if (!eskiSifre || !yeniSifre || !yeniSifreTekrar) {
+        mesajAlani.style.color = "var(--danger)";
+        mesajAlani.innerHTML = "Lütfen tüm alanları doldurun.";
+        return;
+      }
+      if (yeniSifre !== yeniSifreTekrar) {
+        mesajAlani.style.color = "var(--danger)";
+        mesajAlani.innerHTML = "Yeni şifreler birbiriyle eşleşmiyor.";
+        return;
+      }
+      if (yeniSifre.length < 4) {
+        mesajAlani.style.color = "var(--danger)";
+        mesajAlani.innerHTML = "Yeni şifre en az 4 karakter olmalı.";
+        return;
+      }
+
+      // Önce mevcut şifreyi doğrula
+      await bayiBilgisiniTazele();
+      const eskiSifreHash = await sha256Hex(eskiSifre);
+      if (eskiSifreHash !== girisYapanBayi.sifre) {
+        mesajAlani.style.color = "var(--danger)";
+        mesajAlani.innerHTML = "Mevcut şifreniz yanlış.";
+        return;
+      }
+
+      const yeniSifreHash = await sha256Hex(yeniSifre);
+      const { error } = await supabaseClient
+        .from("bayiler")
+        .update({ sifre: yeniSifreHash })
+        .eq("id", girisYapanBayi.id);
+
+      if (error) {
+        mesajAlani.style.color = "var(--danger)";
+        mesajAlani.innerHTML = "Hata: " + error.message;
+        return;
+      }
+
+      girisYapanBayi.sifre = yeniSifreHash;
+      localStorage.setItem("cukurovaBayiOturum", JSON.stringify(girisYapanBayi));
+
+      mesajAlani.style.color = "var(--success)";
+      mesajAlani.innerHTML = "Şifreniz başarıyla güncellendi.";
+      document.getElementById("eskiSifreGiris").value = "";
+      document.getElementById("yeniSifreGiris").value = "";
+      document.getElementById("yeniSifreTekrarGiris").value = "";
     }
 
     async function hesapHareketleriGetir() {
