@@ -445,6 +445,17 @@
       return n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' TL';
     }
 
+    // Şifreyi SHA-256 ile hash'ler (tarayıcının kendi güvenlik özelliğini kullanır,
+    // dışarıdan hiçbir kütüphane eklemeye gerek yok). Girilen şifre asla düz metin
+    // olarak veritabanına gönderilmez veya sorgulanmaz.
+    async function sha256Hex(metin) {
+      const encoder = new TextEncoder();
+      const veri = encoder.encode(metin);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', veri);
+      const hashDizisi = Array.from(new Uint8Array(hashBuffer));
+      return hashDizisi.map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
     const sekmeBasliklari = {
       arama: "Ürün Arama",
       sepet: "Sepetim",
@@ -472,15 +483,23 @@
     }
 
     async function girisYap() {
-      const kullaniciAdi = document.getElementById("kullaniciAdi").value;
-      const sifre = document.getElementById("sifreGiris").value;
+      const kullaniciAdi = document.getElementById("kullaniciAdi").value.trim();
+      const sifre = document.getElementById("sifreGiris").value.trim();
       const hataAlani = document.getElementById("girisHata");
+      hataAlani.innerHTML = "";
+
+      if (!kullaniciAdi || !sifre) {
+        hataAlani.innerHTML = "Kullanıcı adı ve şifre boş olamaz.";
+        return;
+      }
+
+      const sifreHash = await sha256Hex(sifre);
 
       const { data, error } = await supabaseClient
         .from("bayiler")
         .select("*")
         .eq("kullanici_adi", kullaniciAdi)
-        .eq("sifre", sifre);
+        .eq("sifre", sifreHash);
 
       if (error || data.length === 0) {
         hataAlani.innerHTML = "Kullanıcı adı veya şifre hatalı.";
