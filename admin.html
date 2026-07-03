@@ -503,12 +503,15 @@
       document.getElementById("firmaAdiGiris").value = b.firma_adi || "";
       document.getElementById("yetkiliKisiGiris").value = b.yetkili_kisi || "";
       document.getElementById("telefonGiris").value = b.telefon || "";
+      // Kullanıcı adı ve şifre sadece bayi OLUŞTURULURKEN belirlenir. Düzenleme sırasında
+      // admin bunları göremez/değiştiremez — şifreyi artık sadece bayinin kendisi,
+      // kendi panelinden değiştirebilir.
       document.getElementById("bKullaniciAdiGiris").value = b.kullanici_adi || "";
-      // Güvenlik nedeniyle şifre alanı artık BOŞ gösteriliyor (veritabanında düz metin
-      // değil hash tutuluyor). Bu bayinin şifresini değiştirmek istemiyorsan burayı
-      // boş bırakabilirsin, kaydettiğinde eski şifresi aynen kalır.
+      document.getElementById("bKullaniciAdiGiris").disabled = true;
       document.getElementById("bSifreGiris").value = "";
-      document.getElementById("bSifreYardim").innerText = "Şifreyi değiştirmek istemiyorsan bu alanı boş bırak.";
+      document.getElementById("bSifreGiris").disabled = true;
+      document.getElementById("bSifreGiris").placeholder = "Bayi kendi panelinden değiştirir";
+      document.getElementById("bSifreYardim").innerText = "Kullanıcı adı ve şifre sadece bayi oluşturulurken belirlenir. Bayi, şifresini kendi panelinden değiştirebilir.";
       document.getElementById("bakiyeGiris").value = b.bakiye || "";
       document.getElementById("krediLimitiGiris").value = b.kredi_limiti || "";
       document.getElementById("bayiFormBaslik").innerText = "Bayiyi Düzenle";
@@ -520,6 +523,10 @@
       document.getElementById("bayiDuzenleId").value = "";
       ["firmaAdiGiris","yetkiliKisiGiris","telefonGiris","bKullaniciAdiGiris","bSifreGiris","bakiyeGiris","krediLimitiGiris"]
         .forEach(id => document.getElementById(id).value = "");
+      // Yeni bayi eklerken kullanıcı adı/şifre tekrar düzenlenebilir olmalı.
+      document.getElementById("bKullaniciAdiGiris").disabled = false;
+      document.getElementById("bSifreGiris").disabled = false;
+      document.getElementById("bSifreGiris").placeholder = "Şifre";
       document.getElementById("bSifreYardim").innerText = "";
       document.getElementById("bayiFormBaslik").innerText = "Yeni Bayi Ekle";
       document.getElementById("bayiKaydetBtn").innerText = "Bayiyi Ekle";
@@ -527,42 +534,38 @@
 
     async function bayiKaydet() {
       const id = document.getElementById("bayiDuzenleId").value;
-      const girilenSifre = document.getElementById("bSifreGiris").value.trim();
 
       const kayit = {
         firma_adi: document.getElementById("firmaAdiGiris").value,
         yetkili_kisi: document.getElementById("yetkiliKisiGiris").value,
         telefon: document.getElementById("telefonGiris").value,
-        kullanici_adi: document.getElementById("bKullaniciAdiGiris").value.trim(),
         bakiye: parseFloat(document.getElementById("bakiyeGiris").value) || 0,
         kredi_limiti: parseFloat(document.getElementById("krediLimitiGiris").value) || 0
       };
 
-      if (!kayit.firma_adi || !kayit.kullanici_adi) {
-        alert("Firma adı ve kullanıcı adı boş olamaz.");
+      if (!kayit.firma_adi) {
+        alert("Firma adı boş olamaz.");
         return;
-      }
-
-      if (id) {
-        // Bayi düzenleniyor: şifre kutusu boşsa mevcut şifreye dokunma,
-        // doluysa yeni şifreyi hash'leyip güncelle.
-        if (girilenSifre) {
-          kayit.sifre = await sha256Hex(girilenSifre);
-        }
-      } else {
-        // Yeni bayi ekleniyor: şifre zorunlu.
-        if (!girilenSifre) {
-          alert("Yeni bayi için şifre girilmesi zorunludur.");
-          return;
-        }
-        kayit.sifre = await sha256Hex(girilenSifre);
       }
 
       let hata;
       if (id) {
+        // Bayi düzenleniyor: kullanıcı adı ve şifreye HİÇ dokunulmuyor.
         const sonuc = await supabaseClient.from("bayiler").update(kayit).eq("id", id);
         hata = sonuc.error;
       } else {
+        // Yeni bayi ekleniyor: kullanıcı adı ve şifre burada, sadece bir kez belirlenir.
+        const kullaniciAdi = document.getElementById("bKullaniciAdiGiris").value.trim();
+        const girilenSifre = document.getElementById("bSifreGiris").value.trim();
+
+        if (!kullaniciAdi || !girilenSifre) {
+          alert("Yeni bayi için kullanıcı adı ve şifre girilmesi zorunludur.");
+          return;
+        }
+
+        kayit.kullanici_adi = kullaniciAdi;
+        kayit.sifre = await sha256Hex(girilenSifre);
+
         const sonuc = await supabaseClient.from("bayiler").insert(kayit);
         hata = sonuc.error;
       }
