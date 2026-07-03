@@ -441,7 +441,7 @@
       pos: "Ödeme"
     };
 
-    function sekmeGoster(hangisi) {
+    async function sekmeGoster(hangisi) {
       const sekmeler = { arama: "aramaSekmesi", sepet: "sepetSekmesi", siparis: "siparisSekmesi", hesap: "hesapSekmesi", pos: "posSekmesi" };
       const navlar = { arama: "navArama", sepet: "navSepet", siparis: "navSiparis", hesap: "navHesap", pos: "navPos" };
 
@@ -454,8 +454,9 @@
       document.getElementById(navlar[hangisi]).classList.add("aktif");
       document.getElementById("topbarBaslik").innerText = sekmeBasliklari[hangisi];
 
-      if (hangisi === 'hesap') hesapHareketleriGetir();
+      if (hangisi === 'hesap') { await bayiBilgisiniTazele(); hesapHareketleriGetir(); }
       if (hangisi === 'siparis') siparislerimGetir();
+      if (hangisi === 'sepet') bayiBilgisiniTazele();
     }
 
     async function girisYap() {
@@ -488,6 +489,26 @@
       document.getElementById("topbarFirma").innerText = girisYapanBayi.firma_adi;
       document.getElementById("topbarBakiye").innerText = "Bakiye: " + girisYapanBayi.bakiye + " TL";
       document.getElementById("topbarAvatar").innerText = girisYapanBayi.firma_adi.charAt(0).toUpperCase();
+
+      bayiBilgisiniTazele();
+    }
+
+    // Admin panelinden yapılan güncellemeleri (bakiye, kredi limiti vb.) yakalamak için
+    // Supabase'den bayinin en güncel halini çekip hafızayı ve ekranı tazeler.
+    async function bayiBilgisiniTazele() {
+      if (!girisYapanBayi) return;
+      const { data, error } = await supabaseClient
+        .from("bayiler")
+        .select("*")
+        .eq("id", girisYapanBayi.id)
+        .single();
+
+      if (error || !data) return;
+
+      girisYapanBayi = data;
+      localStorage.setItem("cukurovaBayiOturum", JSON.stringify(girisYapanBayi));
+      document.getElementById("topbarFirma").innerText = girisYapanBayi.firma_adi;
+      document.getElementById("topbarBakiye").innerText = "Bakiye: " + girisYapanBayi.bakiye + " TL";
     }
 
     function cikisYap() {
@@ -608,6 +629,8 @@
 
     async function siparisiGonder() {
       if (sepet.length === 0) return;
+
+      await bayiBilgisiniTazele();
 
       const sepetToplami = sepet.reduce((acc, item) => acc + (item.fiyat * item.adet), 0);
       const mevcutBorc = parseFloat(girisYapanBayi.bakiye) || 0;
