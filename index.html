@@ -14,10 +14,15 @@
     body { font-family: Arial, sans-serif; background: #0a1f3d; color: white; padding: 40px; text-align: center; }
     h1, h2 { color: #d4af37; }
     input { padding: 10px; width: 300px; border-radius: 5px; border: none; margin-bottom: 10px; }
-    button { padding: 10px 20px; background: #d4af37; color: #0a1f3d; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
-    #sonuclar { margin-top: 30px; text-align: left; max-width: 500px; margin-left: auto; margin-right: auto; }
-    .urun-karti { background: white; color: #0a1f3d; padding: 15px; margin-bottom: 10px; border-radius: 8px; }
+    button { padding: 10px 20px; background: #d4af37; color: #0a1f3d; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; margin: 5px; }
+    #sonuclar, #sepetAlani { margin-top: 20px; text-align: left; max-width: 500px; margin-left: auto; margin-right: auto; }
+    .urun-karti { background: white; color: #0a1f3d; padding: 15px; margin-bottom: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
+    .urun-bilgi { text-align: left; }
     #hosgeldin { background: #14335c; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+    .sepet-satiri { background: white; color: #0a1f3d; padding: 10px 15px; margin-bottom: 8px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
+    .sil-btn { background: #c0392b; color: white; padding: 5px 10px; font-size: 12px; }
+    .ekle-btn { background: #2e7d32; color: white; }
+    #sepetToplam { font-weight: bold; margin-top: 10px; }
   </style>
 </head>
 <body>
@@ -33,7 +38,7 @@
     <p id="girisHata" style="color: #ff6b6b;"></p>
   </div>
 
-  <!-- GİRİŞ SONRASI EKRAN (başta gizli) -->
+  <!-- GİRİŞ SONRASI EKRAN -->
   <div id="anaEkran" style="display:none;">
     <p id="hosgeldin"></p>
 
@@ -42,9 +47,19 @@
     <button onclick="urunAra()">Ara</button>
 
     <div id="sonuclar"></div>
+
+    <h2>🛒 Sepetim</h2>
+    <div id="sepetAlani">
+      <p id="sepetBos">Sepetiniz boş.</p>
+    </div>
+    <p id="sepetToplam"></p>
+    <button onclick="siparisiGonder()" id="gonderBtn" style="display:none;">Siparişi Gönder</button>
   </div>
 
   <script>
+    let girisYapanBayi = null;
+    let sepet = [];
+
     async function girisYap() {
       const kullaniciAdi = document.getElementById("kullaniciAdi").value;
       const sifre = document.getElementById("sifreGiris").value;
@@ -61,11 +76,11 @@
         return;
       }
 
-      const bayi = data[0];
+      girisYapanBayi = data[0];
       document.getElementById("girisEkrani").style.display = "none";
       document.getElementById("anaEkran").style.display = "block";
       document.getElementById("hosgeldin").innerHTML =
-        "Hoş geldiniz, " + bayi.firma_adi + "! Bakiyeniz: " + bayi.bakiye + " TL | Kredi Limitiniz: " + bayi.kredi_limiti + " TL";
+        "Hoş geldiniz, " + girisYapanBayi.firma_adi + "! Bakiyeniz: " + girisYapanBayi.bakiye + " TL | Kredi Limitiniz: " + girisYapanBayi.kredi_limiti + " TL";
     }
 
     async function urunAra() {
@@ -92,13 +107,85 @@
       data.forEach(function(urun) {
         sonucAlani.innerHTML += `
           <div class="urun-karti">
-            <strong>${urun.urun_adi}</strong><br>
-            Marka: ${urun.marka} | Model: ${urun.model} | Yıl: ${urun.yil}<br>
-            OEM Kod: ${urun.oem_kodu}<br>
-            Stok: ${urun.stok_adet} adet | Fiyat: ${urun.fiyat} TL
+            <div class="urun-bilgi">
+              <strong>${urun.urun_adi}</strong><br>
+              Marka: ${urun.marka} | Model: ${urun.model} | Yıl: ${urun.yil}<br>
+              OEM Kod: ${urun.oem_kodu}<br>
+              Stok: ${urun.stok_adet} adet | Fiyat: ${urun.fiyat} TL
+            </div>
+            <button class="ekle-btn" onclick="sepeteEkle(${urun.id}, '${urun.urun_adi.replace(/'/g, "")}', ${urun.fiyat})">Sepete Ekle</button>
           </div>
         `;
       });
+    }
+
+    function sepeteEkle(urunId, urunAdi, fiyat) {
+      const mevcut = sepet.find(item => item.urunId === urunId);
+      if (mevcut) {
+        mevcut.adet += 1;
+      } else {
+        sepet.push({ urunId: urunId, urunAdi: urunAdi, fiyat: fiyat, adet: 1 });
+      }
+      sepetiGoster();
+    }
+
+    function sepettenSil(urunId) {
+      sepet = sepet.filter(item => item.urunId !== urunId);
+      sepetiGoster();
+    }
+
+    function sepetiGoster() {
+      const sepetAlani = document.getElementById("sepetAlani");
+      const sepetToplam = document.getElementById("sepetToplam");
+      const gonderBtn = document.getElementById("gonderBtn");
+
+      if (sepet.length === 0) {
+        sepetAlani.innerHTML = '<p id="sepetBos">Sepetiniz boş.</p>';
+        sepetToplam.innerHTML = "";
+        gonderBtn.style.display = "none";
+        return;
+      }
+
+      let toplam = 0;
+      sepetAlani.innerHTML = "";
+      sepet.forEach(function(item) {
+        const satirToplam = item.fiyat * item.adet;
+        toplam += satirToplam;
+        sepetAlani.innerHTML += `
+          <div class="sepet-satiri">
+            <span>${item.urunAdi} — ${item.adet} adet x ${item.fiyat} TL = ${satirToplam} TL</span>
+            <button class="sil-btn" onclick="sepettenSil(${item.urunId})">Sil</button>
+          </div>
+        `;
+      });
+
+      sepetToplam.innerHTML = "Toplam: " + toplam + " TL";
+      gonderBtn.style.display = "inline-block";
+    }
+
+    async function siparisiGonder() {
+      if (sepet.length === 0) return;
+
+      for (const item of sepet) {
+        await supabaseClient.from("siparisler").insert({
+          bayi_id: girisYapanBayi.id,
+          urun_id: item.urunId,
+          adet: item.adet,
+          durum: "beklemede"
+        });
+      }
+
+      let mesaj = "Merhaba, " + girisYapanBayi.firma_adi + " olarak sipariş vermek istiyorum:%0A%0A";
+      sepet.forEach(function(item) {
+        mesaj += "- " + item.urunAdi + " x " + item.adet + " adet%0A";
+      });
+
+      const whatsappNo = "905360894407";
+      window.open("https://wa.me/" + whatsappNo + "?text=" + mesaj, "_blank");
+
+      sepet = [];
+      sepetiGoster();
+      alert("Siparişiniz kaydedildi ve WhatsApp'a yönlendirildiniz!");
     }
   </script>
 
