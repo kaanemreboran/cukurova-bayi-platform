@@ -39,7 +39,7 @@
       margin: 10px 0 0 0;
     }
     .container {
-      max-width: 600px;
+      max-width: 650px;
       margin: 30px auto;
       padding: 0 20px;
     }
@@ -119,17 +119,18 @@
     .sekmeler {
       display: flex;
       justify-content: center;
-      gap: 6px;
+      gap: 4px;
       margin-bottom: 20px;
       border-bottom: 2px solid var(--border);
+      flex-wrap: wrap;
     }
     .sekme-btn {
       background: none;
       color: var(--navy);
       border: none;
       border-radius: 0;
-      padding: 12px 24px;
-      font-size: 15px;
+      padding: 12px 18px;
+      font-size: 14px;
       font-weight: bold;
       cursor: pointer;
       border-bottom: 3px solid transparent;
@@ -150,6 +151,56 @@
       font-size: 12px;
       margin-left: 5px;
     }
+
+    /* HESAP EKRANI STİLLERİ */
+    .hesap-ozet {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .hesap-kutu {
+      background: white;
+      border-radius: 8px;
+      padding: 15px 20px;
+      flex: 1;
+      min-width: 140px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+      border-top: 3px solid var(--gold);
+      text-align: center;
+    }
+    .hesap-kutu .deger { font-size: 20px; font-weight: bold; margin-top: 5px; }
+    .hesap-kutu.borc .deger { color: #c0392b; }
+    .hesap-kutu.temiz .deger { color: #2e7d32; }
+    table.hesap-tablosu {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+    table.hesap-tablosu th {
+      background: var(--navy);
+      color: white;
+      padding: 10px;
+      font-size: 13px;
+      text-align: left;
+    }
+    table.hesap-tablosu td {
+      padding: 10px;
+      font-size: 13px;
+      border-bottom: 1px solid var(--border);
+    }
+    .durum-rozet {
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: bold;
+      color: white;
+    }
+    .durum-odendi { background: #2e7d32; }
+    .durum-odenmedi { background: #c0392b; }
   </style>
 </head>
 <body>
@@ -178,6 +229,7 @@
       <div class="sekmeler">
         <button class="sekme-btn aktif" id="btnAramaSekme" onclick="sekmeGoster('arama')">🔍 Arama</button>
         <button class="sekme-btn" id="btnSepetSekme" onclick="sekmeGoster('sepet')">🛒 Sepet<span class="sepet-rozet" id="sepetSayisi" style="display:none;">0</span></button>
+        <button class="sekme-btn" id="btnHesapSekme" onclick="sekmeGoster('hesap')">💳 Hesap</button>
       </div>
 
       <!-- ARAMA SEKMESİ -->
@@ -198,6 +250,26 @@
         <button onclick="siparisiGonder()" id="gonderBtn" style="display:none;">Siparişi Gönder</button>
       </div>
 
+      <!-- HESAP SEKMESİ -->
+      <div id="hesapSekmesi" class="sekme-icerik">
+        <h2>💳 Hesap Hareketlerim</h2>
+        <div class="hesap-ozet">
+          <div class="hesap-kutu borc">
+            <div>Toplam Borç</div>
+            <div class="deger" id="toplamBorc">0 TL</div>
+          </div>
+          <div class="hesap-kutu temiz">
+            <div>Toplam Ödenen</div>
+            <div class="deger" id="toplamOdenen">0 TL</div>
+          </div>
+          <div class="hesap-kutu borc">
+            <div>Kalan Bakiye</div>
+            <div class="deger" id="kalanBakiye">0 TL</div>
+          </div>
+        </div>
+        <div id="hesapTabloAlani">Yükleniyor...</div>
+      </div>
+
     </div>
 
   </div>
@@ -207,21 +279,19 @@
     let sepet = [];
 
     function sekmeGoster(hangisi) {
-      const aramaSekmesi = document.getElementById("aramaSekmesi");
-      const sepetSekmesi = document.getElementById("sepetSekmesi");
-      const btnArama = document.getElementById("btnAramaSekme");
-      const btnSepet = document.getElementById("btnSepetSekme");
+      const sekmeler = { arama: "aramaSekmesi", sepet: "sepetSekmesi", hesap: "hesapSekmesi" };
+      const butonlar = { arama: "btnAramaSekme", sepet: "btnSepetSekme", hesap: "btnHesapSekme" };
 
-      if (hangisi === 'arama') {
-        aramaSekmesi.classList.add("aktif-icerik");
-        sepetSekmesi.classList.remove("aktif-icerik");
-        btnArama.classList.add("aktif");
-        btnSepet.classList.remove("aktif");
-      } else {
-        sepetSekmesi.classList.add("aktif-icerik");
-        aramaSekmesi.classList.remove("aktif-icerik");
-        btnSepet.classList.add("aktif");
-        btnArama.classList.remove("aktif");
+      Object.keys(sekmeler).forEach(function(key) {
+        document.getElementById(sekmeler[key]).classList.remove("aktif-icerik");
+        document.getElementById(butonlar[key]).classList.remove("aktif");
+      });
+
+      document.getElementById(sekmeler[hangisi]).classList.add("aktif-icerik");
+      document.getElementById(butonlar[hangisi]).classList.add("aktif");
+
+      if (hangisi === 'hesap') {
+        hesapHareketleriGetir();
       }
     }
 
@@ -360,6 +430,87 @@
       sepet = [];
       sepetiGoster();
       alert("Siparişiniz kaydedildi ve WhatsApp'a yönlendirildiniz!");
+    }
+
+    async function hesapHareketleriGetir() {
+      const alan = document.getElementById("hesapTabloAlani");
+      alan.innerHTML = "Yükleniyor...";
+
+      const { data, error } = await supabaseClient
+        .from("hesap_hareketleri")
+        .select("*")
+        .eq("bayi_id", girisYapanBayi.id)
+        .order("tarih", { ascending: true });
+
+      if (error) {
+        alan.innerHTML = "Bir hata oluştu: " + error.message;
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        alan.innerHTML = "<p>Henüz bir hesap hareketiniz bulunmuyor.</p>";
+        document.getElementById("toplamBorc").innerHTML = "0 TL";
+        document.getElementById("toplamOdenen").innerHTML = "0 TL";
+        document.getElementById("kalanBakiye").innerHTML = "0 TL";
+        return;
+      }
+
+      let toplamBorc = 0;
+      let toplamAlacak = 0;
+      let bakiye = 0;
+      let satirlar = "";
+
+      data.forEach(function(hareket) {
+        const borc = parseFloat(hareket.borc) || 0;
+        const alacak = parseFloat(hareket.alacak) || 0;
+        toplamBorc += borc;
+        toplamAlacak += alacak;
+        bakiye += borc - alacak;
+
+        let durumYazi = "";
+        if (borc > 0) {
+          durumYazi = bakiye > 0
+            ? '<span class="durum-rozet durum-odenmedi">Ödenmedi</span>'
+            : '<span class="durum-rozet durum-odendi">Ödendi</span>';
+        } else {
+          durumYazi = '<span class="durum-rozet durum-odendi">Ödeme</span>';
+        }
+
+        satirlar += `
+          <tr>
+            <td>${hareket.tarih}</td>
+            <td>${hareket.aciklama}</td>
+            <td>${hareket.evrak_no || "-"}</td>
+            <td>${borc > 0 ? borc + " TL" : "-"}</td>
+            <td>${alacak > 0 ? alacak + " TL" : "-"}</td>
+            <td>${bakiye} TL</td>
+            <td>${durumYazi}</td>
+          </tr>
+        `;
+      });
+
+      document.getElementById("toplamBorc").innerHTML = toplamBorc + " TL";
+      document.getElementById("toplamOdenen").innerHTML = toplamAlacak + " TL";
+      document.getElementById("kalanBakiye").innerHTML = bakiye + " TL";
+
+      alan.innerHTML = `
+        <table class="hesap-tablosu">
+          <thead>
+            <tr>
+              <th>Tarih</th>
+              <th>Açıklama</th>
+              <th>Evrak No</th>
+              <th>Borç</th>
+              <th>Alacak</th>
+              <th>Bakiye</th>
+              <th>Durum</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${satirlar}
+          </tbody>
+        </table>
+      `;
     }
   </script>
 
