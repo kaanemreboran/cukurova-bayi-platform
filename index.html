@@ -634,6 +634,25 @@
         });
       }
 
+      // Bakiyeyi sipariş tutarı kadar artır
+      const yeniBakiye = mevcutBorc + sepetToplami;
+      await supabaseClient.from("bayiler").update({ bakiye: yeniBakiye }).eq("id", girisYapanBayi.id);
+
+      // Hesap hareketlerine de "Sipariş" olarak borç kaydı düş
+      await supabaseClient.from("hesap_hareketleri").insert({
+        bayi_id: girisYapanBayi.id,
+        tarih: new Date().toISOString().split("T")[0],
+        aciklama: "Sipariş",
+        evrak_no: "",
+        borc: sepetToplami,
+        alacak: 0
+      });
+
+      // Güncel bakiyeyi hafızada ve tarayıcıda da güncelle
+      girisYapanBayi.bakiye = yeniBakiye;
+      localStorage.setItem("cukurovaBayiOturum", JSON.stringify(girisYapanBayi));
+      document.getElementById("topbarBakiye").innerText = "Bakiye: " + yeniBakiye + " TL";
+
       let mesaj = "Merhaba, " + girisYapanBayi.firma_adi + " olarak sipariş vermek istiyorum:%0A%0A";
       sepet.forEach(function(item) {
         mesaj += "- " + item.urunAdi + " x " + item.adet + " adet%0A";
