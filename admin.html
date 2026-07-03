@@ -448,6 +448,7 @@
             <td style="${renk}">${kullanilabilir} TL</td>
             <td class="aksiyonlar">
               <button class="duzenle-btn" onclick="bayiDuzenle(${b.id})">Düzenle</button>
+              <button class="duzenle-btn" style="background:#2c6e91;" onclick="bakiyeSenkronizeEt(${b.id})">Senkronize Et</button>
               <button class="sil-btn" onclick="bayiSil(${b.id})">Sil</button>
             </td>
           </tr>
@@ -515,6 +516,30 @@
       if (hata) { alert("Hata: " + hata.message); return; }
 
       bayiFormTemizle();
+      bayileriGetir();
+    }
+
+    async function bakiyeSenkronizeEt(bayiId) {
+      const { data, error } = await supabaseClient
+        .from("hesap_hareketleri")
+        .select("borc, alacak")
+        .eq("bayi_id", bayiId);
+
+      if (error) { alert("Hata: " + error.message); return; }
+
+      let toplam = 0;
+      (data || []).forEach(h => {
+        toplam += (parseFloat(h.borc) || 0) - (parseFloat(h.alacak) || 0);
+      });
+
+      const { error: guncelleHata } = await supabaseClient
+        .from("bayiler")
+        .update({ bakiye: toplam })
+        .eq("id", bayiId);
+
+      if (guncelleHata) { alert("Hata: " + guncelleHata.message); return; }
+
+      alert("Bakiye senkronize edildi: " + toplam + " TL");
       bayileriGetir();
     }
 
