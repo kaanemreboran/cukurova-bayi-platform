@@ -229,6 +229,7 @@
       <div class="sekmeler">
         <button class="sekme-btn aktif" id="btnAramaSekme" onclick="sekmeGoster('arama')">🔍 Arama</button>
         <button class="sekme-btn" id="btnSepetSekme" onclick="sekmeGoster('sepet')">🛒 Sepet<span class="sepet-rozet" id="sepetSayisi" style="display:none;">0</span></button>
+        <button class="sekme-btn" id="btnSiparisSekme" onclick="sekmeGoster('siparis')">📦 Siparişlerim</button>
         <button class="sekme-btn" id="btnHesapSekme" onclick="sekmeGoster('hesap')">💳 Hesap</button>
       </div>
 
@@ -248,6 +249,12 @@
         </div>
         <p id="sepetToplam"></p>
         <button onclick="siparisiGonder()" id="gonderBtn" style="display:none;">Siparişi Gönder</button>
+      </div>
+
+      <!-- SİPARİŞLERİM SEKMESİ -->
+      <div id="siparisSekmesi" class="sekme-icerik">
+        <h2>📦 Siparişlerim</h2>
+        <div id="siparisTabloAlani">Yükleniyor...</div>
       </div>
 
       <!-- HESAP SEKMESİ -->
@@ -279,8 +286,8 @@
     let sepet = [];
 
     function sekmeGoster(hangisi) {
-      const sekmeler = { arama: "aramaSekmesi", sepet: "sepetSekmesi", hesap: "hesapSekmesi" };
-      const butonlar = { arama: "btnAramaSekme", sepet: "btnSepetSekme", hesap: "btnHesapSekme" };
+      const sekmeler = { arama: "aramaSekmesi", sepet: "sepetSekmesi", siparis: "siparisSekmesi", hesap: "hesapSekmesi" };
+      const butonlar = { arama: "btnAramaSekme", sepet: "btnSepetSekme", siparis: "btnSiparisSekme", hesap: "btnHesapSekme" };
 
       Object.keys(sekmeler).forEach(function(key) {
         document.getElementById(sekmeler[key]).classList.remove("aktif-icerik");
@@ -292,6 +299,9 @@
 
       if (hangisi === 'hesap') {
         hesapHareketleriGetir();
+      }
+      if (hangisi === 'siparis') {
+        siparislerimGetir();
       }
     }
 
@@ -414,8 +424,11 @@
         await supabaseClient.from("siparisler").insert({
           bayi_id: girisYapanBayi.id,
           urun_id: item.urunId,
+          urun_adi: item.urunAdi,
           adet: item.adet,
-          durum: "beklemede"
+          tutar: item.fiyat * item.adet,
+          durum: "beklemede",
+          odeme_durumu: "Ödenmedi"
         });
       }
 
@@ -430,6 +443,64 @@
       sepet = [];
       sepetiGoster();
       alert("Siparişiniz kaydedildi ve WhatsApp'a yönlendirildiniz!");
+    }
+
+    async function siparislerimGetir() {
+      const alan = document.getElementById("siparisTabloAlani");
+      alan.innerHTML = "Yükleniyor...";
+
+      const { data, error } = await supabaseClient
+        .from("siparisler")
+        .select("*")
+        .eq("bayi_id", girisYapanBayi.id)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        alan.innerHTML = "Bir hata oluştu: " + error.message;
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        alan.innerHTML = "<p>Henüz bir siparişiniz bulunmuyor.</p>";
+        return;
+      }
+
+      let satirlar = "";
+      data.forEach(function(siparis) {
+        const tarih = siparis.created_at ? siparis.created_at.split("T")[0] : "-";
+        const tutar = siparis.tutar ? siparis.tutar + " TL" : "-";
+        const durumSinifi = siparis.odeme_durumu === "Ödendi" ? "durum-odendi" : "durum-odenmedi";
+        const odemeDurumu = siparis.odeme_durumu || "Ödenmedi";
+
+        satirlar += `
+          <tr>
+            <td>${tarih}</td>
+            <td>${siparis.urun_adi || "-"}</td>
+            <td>${siparis.adet}</td>
+            <td>${tutar}</td>
+            <td><span class="durum-rozet durum-odendi">${siparis.durum}</span></td>
+            <td><span class="durum-rozet ${durumSinifi}">${odemeDurumu}</span></td>
+          </tr>
+        `;
+      });
+
+      alan.innerHTML = `
+        <table class="hesap-tablosu">
+          <thead>
+            <tr>
+              <th>Tarih</th>
+              <th>Ürün</th>
+              <th>Adet</th>
+              <th>Tutar</th>
+              <th>Sipariş Durumu</th>
+              <th>Ödeme Durumu</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${satirlar}
+          </tbody>
+        </table>
+      `;
     }
 
     async function hesapHareketleriGetir() {
