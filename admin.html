@@ -433,14 +433,19 @@
 
       let satirlar = "";
       data.forEach(function(b) {
+        const bakiye = parseFloat(b.bakiye) || 0;
+        const krediLimiti = parseFloat(b.kredi_limiti) || 0;
+        const kullanilabilir = krediLimiti - bakiye;
+        const renk = kullanilabilir < 0 ? "color:#c0392b; font-weight:bold;" : "color:#2e7d32;";
         satirlar += `
           <tr>
             <td>${b.firma_adi}</td>
             <td>${b.yetkili_kisi || "-"}</td>
             <td>${b.telefon || "-"}</td>
             <td>${b.kullanici_adi}</td>
-            <td>${b.bakiye} TL</td>
-            <td>${b.kredi_limiti} TL</td>
+            <td>${bakiye} TL</td>
+            <td>${krediLimiti} TL</td>
+            <td style="${renk}">${kullanilabilir} TL</td>
             <td class="aksiyonlar">
               <button class="duzenle-btn" onclick="bayiDuzenle(${b.id})">Düzenle</button>
               <button class="sil-btn" onclick="bayiSil(${b.id})">Sil</button>
@@ -451,7 +456,7 @@
 
       alan.innerHTML = `
         <table class="veri-tablosu">
-          <thead><tr><th>Firma Adı</th><th>Yetkili</th><th>Telefon</th><th>Kullanıcı Adı</th><th>Bakiye</th><th>Kredi Limiti</th><th>İşlem</th></tr></thead>
+          <thead><tr><th>Firma Adı</th><th>Yetkili</th><th>Telefon</th><th>Kullanıcı Adı</th><th>Bakiye</th><th>Kredi Limiti</th><th>Kullanılabilir Limit</th><th>İşlem</th></tr></thead>
           <tbody>${satirlar}</tbody>
         </table>
       `;
