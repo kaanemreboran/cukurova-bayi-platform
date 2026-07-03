@@ -626,7 +626,8 @@
 
       sepet = [];
       sepetiGoster();
-      alert("Siparişiniz kaydedildi ve WhatsApp'a yönlendirildiniz!");
+      alert("Siparişiniz alındı! Ekibimiz onayladıktan sonra durumu 'Onaylandı' olarak güncellenecek.");
+      document.getElementById('navSiparis').click();
     }
 
     async function siparislerimGetir() {
@@ -650,11 +651,19 @@
       }
 
       let satirlar = "";
+      const durumMetinleri = {
+        beklemede: "Beklemede",
+        onaylandi: "Onaylandı",
+        kargolandi: "Kargolandı",
+        "teslim edildi": "Teslim Edildi"
+      };
       data.forEach(function(siparis) {
         const tarih = siparis.created_at ? siparis.created_at.split("T")[0] : "-";
         const tutar = siparis.tutar ? siparis.tutar + " TL" : "-";
-        const durumSinifi = siparis.odeme_durumu === "Ödendi" ? "durum-odendi" : "durum-odenmedi";
+        const odemeSinifi = siparis.odeme_durumu === "Ödendi" ? "durum-odendi" : "durum-odenmedi";
         const odemeDurumu = siparis.odeme_durumu || "Ödenmedi";
+        const siparisDurumuMetin = durumMetinleri[siparis.durum] || siparis.durum;
+        const siparisSinifi = siparis.durum === "beklemede" ? "durum-odenmedi" : "durum-odendi";
 
         satirlar += `
           <tr>
@@ -662,8 +671,8 @@
             <td>${siparis.urun_adi || "-"}</td>
             <td>${siparis.adet}</td>
             <td>${tutar}</td>
-            <td><span class="durum-rozet durum-odendi">${siparis.durum}</span></td>
-            <td><span class="durum-rozet ${durumSinifi}">${odemeDurumu}</span></td>
+            <td><span class="durum-rozet ${siparisSinifi}">${siparisDurumuMetin}</span></td>
+            <td><span class="durum-rozet ${odemeSinifi}">${odemeDurumu}</span></td>
           </tr>
         `;
       });
