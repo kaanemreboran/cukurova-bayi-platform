@@ -115,6 +115,41 @@
     }
     #girisHata { color: #c0392b; font-weight: bold; }
     #sepetBos { color: #888; }
+
+    .sekmeler {
+      display: flex;
+      justify-content: center;
+      gap: 6px;
+      margin-bottom: 20px;
+      border-bottom: 2px solid var(--border);
+    }
+    .sekme-btn {
+      background: none;
+      color: var(--navy);
+      border: none;
+      border-radius: 0;
+      padding: 12px 24px;
+      font-size: 15px;
+      font-weight: bold;
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      margin: 0;
+    }
+    .sekme-btn:hover { background: #eceff3; }
+    .sekme-btn.aktif {
+      color: var(--gold);
+      border-bottom: 3px solid var(--gold);
+    }
+    .sekme-icerik { display: none; }
+    .sekme-icerik.aktif-icerik { display: block; }
+    .sepet-rozet {
+      background: var(--gold);
+      color: white;
+      border-radius: 50%;
+      padding: 1px 7px;
+      font-size: 12px;
+      margin-left: 5px;
+    }
   </style>
 </head>
 <body>
@@ -139,18 +174,30 @@
     <div id="anaEkran" style="display:none;">
       <p id="hosgeldin"></p>
 
-      <h2>Ürün Arama</h2>
-      <input type="text" id="aramaKutusu" placeholder="Örn: Fren Balatası">
-      <button onclick="urunAra()">Ara</button>
-
-      <div id="sonuclar"></div>
-
-      <h2>🛒 Sepetim</h2>
-      <div id="sepetAlani">
-        <p id="sepetBos">Sepetiniz boş.</p>
+      <!-- SEKME BUTONLARI -->
+      <div class="sekmeler">
+        <button class="sekme-btn aktif" id="btnAramaSekme" onclick="sekmeGoster('arama')">🔍 Arama</button>
+        <button class="sekme-btn" id="btnSepetSekme" onclick="sekmeGoster('sepet')">🛒 Sepet<span class="sepet-rozet" id="sepetSayisi" style="display:none;">0</span></button>
       </div>
-      <p id="sepetToplam"></p>
-      <button onclick="siparisiGonder()" id="gonderBtn" style="display:none;">Siparişi Gönder</button>
+
+      <!-- ARAMA SEKMESİ -->
+      <div id="aramaSekmesi" class="sekme-icerik aktif-icerik">
+        <h2>Ürün Arama</h2>
+        <input type="text" id="aramaKutusu" placeholder="Örn: Fren Balatası">
+        <button onclick="urunAra()">Ara</button>
+        <div id="sonuclar"></div>
+      </div>
+
+      <!-- SEPET SEKMESİ -->
+      <div id="sepetSekmesi" class="sekme-icerik">
+        <h2>🛒 Sepetim</h2>
+        <div id="sepetAlani">
+          <p id="sepetBos">Sepetiniz boş.</p>
+        </div>
+        <p id="sepetToplam"></p>
+        <button onclick="siparisiGonder()" id="gonderBtn" style="display:none;">Siparişi Gönder</button>
+      </div>
+
     </div>
 
   </div>
@@ -158,6 +205,25 @@
   <script>
     let girisYapanBayi = null;
     let sepet = [];
+
+    function sekmeGoster(hangisi) {
+      const aramaSekmesi = document.getElementById("aramaSekmesi");
+      const sepetSekmesi = document.getElementById("sepetSekmesi");
+      const btnArama = document.getElementById("btnAramaSekme");
+      const btnSepet = document.getElementById("btnSepetSekme");
+
+      if (hangisi === 'arama') {
+        aramaSekmesi.classList.add("aktif-icerik");
+        sepetSekmesi.classList.remove("aktif-icerik");
+        btnArama.classList.add("aktif");
+        btnSepet.classList.remove("aktif");
+      } else {
+        sepetSekmesi.classList.add("aktif-icerik");
+        aramaSekmesi.classList.remove("aktif-icerik");
+        btnSepet.classList.add("aktif");
+        btnArama.classList.remove("aktif");
+      }
+    }
 
     async function girisYap() {
       const kullaniciAdi = document.getElementById("kullaniciAdi").value;
@@ -237,6 +303,15 @@
       const sepetAlani = document.getElementById("sepetAlani");
       const sepetToplam = document.getElementById("sepetToplam");
       const gonderBtn = document.getElementById("gonderBtn");
+      const sepetSayisi = document.getElementById("sepetSayisi");
+
+      const toplamAdet = sepet.reduce((acc, item) => acc + item.adet, 0);
+      if (toplamAdet > 0) {
+        sepetSayisi.style.display = "inline-block";
+        sepetSayisi.innerHTML = toplamAdet;
+      } else {
+        sepetSayisi.style.display = "none";
+      }
 
       if (sepet.length === 0) {
         sepetAlani.innerHTML = '<p id="sepetBos">Sepetiniz boş.</p>';
