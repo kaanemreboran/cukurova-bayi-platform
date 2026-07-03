@@ -620,12 +620,21 @@
       const { error } = await supabaseClient.from("hesap_hareketleri").insert(kayit);
       if (error) { alert("Hata: " + error.message); return; }
 
+      // Bayinin bakiyesini de güncelle (borç - alacak kadar)
+      const bayi = bayilerCache.find(b => b.id === parseInt(bayiId));
+      if (bayi) {
+        const mevcutBakiye = parseFloat(bayi.bakiye) || 0;
+        const yeniBakiye = mevcutBakiye + kayit.borc - kayit.alacak;
+        await supabaseClient.from("bayiler").update({ bakiye: yeniBakiye }).eq("id", bayiId);
+        bayi.bakiye = yeniBakiye;
+      }
+
       document.getElementById("hesapAciklamaGiris").value = "";
       document.getElementById("hesapEvrakGiris").value = "";
       document.getElementById("hesapBorcGiris").value = "";
       document.getElementById("hesapAlacakGiris").value = "";
 
-      alert("Hesap hareketi kaydedildi.");
+      alert("Hesap hareketi kaydedildi ve bayi bakiyesi güncellendi.");
 
       if (document.getElementById("hesapGoruntuleBayi").value === bayiId) {
         hesapHareketleriniGetir();
