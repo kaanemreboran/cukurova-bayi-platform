@@ -397,6 +397,10 @@
             <div class="baslik-kucuk">KALAN BAKİYE</div>
             <div class="deger" id="kalanBakiye">0 TL</div>
           </div>
+          <div class="ozet-kutu temiz">
+            <div class="baslik-kucuk">KULLANILABİLİR LİMİT</div>
+            <div class="deger" id="kullanilabilirLimit">0 TL</div>
+          </div>
         </div>
         <div id="hesapTabloAlani">Yükleniyor...</div>
       </div>
@@ -753,6 +757,8 @@
         document.getElementById("toplamBorc").innerHTML = "0 TL";
         document.getElementById("toplamOdenen").innerHTML = "0 TL";
         document.getElementById("kalanBakiye").innerHTML = "0 TL";
+        const krediLimitiBos = parseFloat(girisYapanBayi.kredi_limiti) || 0;
+        document.getElementById("kullanilabilirLimit").innerHTML = krediLimitiBos + " TL";
         return;
       }
 
@@ -793,6 +799,12 @@
       document.getElementById("toplamBorc").innerHTML = toplamBorc + " TL";
       document.getElementById("toplamOdenen").innerHTML = toplamAlacak + " TL";
       document.getElementById("kalanBakiye").innerHTML = bakiye + " TL";
+
+      const krediLimiti = parseFloat(girisYapanBayi.kredi_limiti) || 0;
+      const kullanilabilir = krediLimiti - bakiye;
+      const limitKutusu = document.getElementById("kullanilabilirLimit");
+      limitKutusu.innerHTML = kullanilabilir + " TL";
+      limitKutusu.style.color = kullanilabilir < 0 ? "#c0392b" : "#2e7d32";
 
       alan.innerHTML = `
         <table class="veri-tablosu">
