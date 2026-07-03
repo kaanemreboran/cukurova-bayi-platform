@@ -201,6 +201,21 @@
     }
     .durum-odendi { background: #2e7d32; }
     .durum-odenmedi { background: #c0392b; }
+
+    .pos-kutu {
+      background: white;
+      padding: 25px;
+      border-radius: 10px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+    .pos-secenek {
+      border-left: 4px solid var(--gold);
+      background: var(--gray-bg);
+      padding: 12px 16px;
+      margin-top: 15px;
+      border-radius: 6px;
+    }
+    .pos-secenek p { margin: 5px 0 0 0; font-size: 14px; }
   </style>
 </head>
 <body>
@@ -231,6 +246,7 @@
         <button class="sekme-btn" id="btnSepetSekme" onclick="sekmeGoster('sepet')">🛒 Sepet<span class="sepet-rozet" id="sepetSayisi" style="display:none;">0</span></button>
         <button class="sekme-btn" id="btnSiparisSekme" onclick="sekmeGoster('siparis')">📦 Siparişlerim</button>
         <button class="sekme-btn" id="btnHesapSekme" onclick="sekmeGoster('hesap')">💳 Hesap</button>
+        <button class="sekme-btn" id="btnPosSekme" onclick="sekmeGoster('pos')">💰 Ödeme</button>
       </div>
 
       <!-- ARAMA SEKMESİ -->
@@ -277,6 +293,27 @@
         <div id="hesapTabloAlani">Yükleniyor...</div>
       </div>
 
+      <!-- POS / ÖDEME SEKMESİ -->
+      <div id="posSekmesi" class="sekme-icerik">
+        <h2>💰 Online Ödeme</h2>
+        <div class="pos-kutu">
+          <p><strong>🚧 Online kredi kartı ile ödeme özelliği yakında aktif olacak.</strong></p>
+          <p>Şu an için ödemelerinizi aşağıdaki yöntemlerle yapabilirsiniz:</p>
+          <div class="pos-secenek">
+            <strong>💵 Havale / EFT</strong>
+            <p>Banka: [Banka adınız]<br>IBAN: TR00 0000 0000 0000 0000 0000 00<br>Alıcı: Çukurova Otomotiv Yedek Parça</p>
+          </div>
+          <div class="pos-secenek">
+            <strong>📞 Telefon ile Ödeme</strong>
+            <p>0546 265 47 47 numaralı hattımızdan bizi arayarak kredi kartı bilgilerinizle ödeme yapabilirsiniz.</p>
+          </div>
+          <div class="pos-secenek">
+            <strong>📍 Mağazada Ödeme</strong>
+            <p>Siparişinizi teslim alırken nakit veya kartla ödeme yapabilirsiniz.</p>
+          </div>
+        </div>
+      </div>
+
     </div>
 
   </div>
@@ -286,8 +323,8 @@
     let sepet = [];
 
     function sekmeGoster(hangisi) {
-      const sekmeler = { arama: "aramaSekmesi", sepet: "sepetSekmesi", siparis: "siparisSekmesi", hesap: "hesapSekmesi" };
-      const butonlar = { arama: "btnAramaSekme", sepet: "btnSepetSekme", siparis: "btnSiparisSekme", hesap: "btnHesapSekme" };
+      const sekmeler = { arama: "aramaSekmesi", sepet: "sepetSekmesi", siparis: "siparisSekmesi", hesap: "hesapSekmesi", pos: "posSekmesi" };
+      const butonlar = { arama: "btnAramaSekme", sepet: "btnSepetSekme", siparis: "btnSiparisSekme", hesap: "btnHesapSekme", pos: "btnPosSekme" };
 
       Object.keys(sekmeler).forEach(function(key) {
         document.getElementById(sekmeler[key]).classList.remove("aktif-icerik");
