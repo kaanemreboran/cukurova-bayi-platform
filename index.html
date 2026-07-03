@@ -541,7 +541,7 @@
               <div class="ad">${urun.urun_adi}</div>
               <div class="meta">${urun.marka} | ${urun.model} | ${urun.yil}</div>
               <div class="meta">OEM: ${urun.oem_kodu}</div>
-              <div class="fiyat">${urun.fiyat} TL</div>
+              <div class="fiyat">${urun.eski_fiyat ? `<s style="color:#999; font-size:14px; font-weight:normal;">${urun.eski_fiyat} TL</s> ` : ''}${urun.fiyat} TL</div>
               <button class="ekle-btn" onclick="sepeteEkle(${urun.id}, '${urun.urun_adi.replace(/'/g, "")}', ${urun.fiyat})">Sepete Ekle</button>
             </div>
           </div>
@@ -604,6 +604,23 @@
 
     async function siparisiGonder() {
       if (sepet.length === 0) return;
+
+      const sepetToplami = sepet.reduce((acc, item) => acc + (item.fiyat * item.adet), 0);
+      const mevcutBorc = parseFloat(girisYapanBayi.bakiye) || 0;
+      const krediLimiti = parseFloat(girisYapanBayi.kredi_limiti) || 0;
+      const yeniToplamBorc = mevcutBorc + sepetToplami;
+
+      if (yeniToplamBorc > krediLimiti) {
+        const asilanTutar = (yeniToplamBorc - krediLimiti).toFixed(2);
+        alert(
+          "⚠️ Sipariş gönderilemedi.\n\n" +
+          "Bu sipariş, kredi limitinizi " + asilanTutar + " TL aşıyor.\n" +
+          "Mevcut Bakiyeniz: " + mevcutBorc + " TL\n" +
+          "Kredi Limitiniz: " + krediLimiti + " TL\n\n" +
+          "Lütfen ödeme yapın veya bizimle iletişime geçin: 0546 265 47 47"
+        );
+        return;
+      }
 
       for (const item of sepet) {
         await supabaseClient.from("siparisler").insert({
