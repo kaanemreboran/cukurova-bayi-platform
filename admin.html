@@ -177,6 +177,7 @@
             <input type="text" id="resimUrlGiris" placeholder="Resim URL (opsiyonel)">
             <input type="number" id="eskiFiyatGiris" placeholder="Eski Fiyat (kampanya için, opsiyonel)">
             <input type="number" id="kritikStokGiris" placeholder="Kritik Stok Eşiği (varsayılan 5)">
+            <input type="number" id="kdvOraniGiris" placeholder="KDV Oranı % (varsayılan 20)">
           </div>
           <div class="form-butonlar">
             <button class="ekle-btn" onclick="urunKaydet()" id="urunKaydetBtn">Ürünü Ekle</button>
@@ -243,6 +244,11 @@
     let yonetici = null;
     let urunlerCache = [];
     let bayilerCache = [];
+
+    function paraFormat(sayi) {
+      const n = Number(sayi) || 0;
+      return n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' TL';
+    }
 
     const sekmeBasliklari = {
       urunler: "Ürünler",
@@ -329,6 +335,9 @@
         const kritikMi = u.stok_adet <= (u.kritik_stok || 5);
         const satirStili = kritikMi ? 'style="background:#fdeceb;"' : '';
         const stokMetni = kritikMi ? `⚠️ ${u.stok_adet}` : u.stok_adet;
+        const kdvOrani = u.kdv_orani != null ? u.kdv_orani : 20;
+        const kdvTutari = u.fiyat * (kdvOrani / 100);
+        const toplamFiyat = u.fiyat + kdvTutari;
         satirlar += `
           <tr ${satirStili}>
             <td>${u.urun_adi}</td>
@@ -336,7 +345,9 @@
             <td>${u.marka || "-"}</td>
             <td>${u.model || "-"}</td>
             <td>${stokMetni}</td>
-            <td>${u.eski_fiyat ? `<s style="color:#999;">${u.eski_fiyat} TL</s> ` : ''}${u.fiyat} TL</td>
+            <td>${u.eski_fiyat ? `<s style="color:#999;">${paraFormat(u.eski_fiyat)}</s><br>` : ''}${paraFormat(u.fiyat)}</td>
+            <td>%${kdvOrani}<br>${paraFormat(kdvTutari)}</td>
+            <td><strong>${paraFormat(toplamFiyat)}</strong></td>
             <td class="aksiyonlar">
               <button class="duzenle-btn" onclick="urunDuzenle(${u.id})">Düzenle</button>
               <button class="sil-btn" onclick="urunSil(${u.id})">Sil</button>
@@ -347,7 +358,7 @@
 
       alan.innerHTML = `
         <table class="veri-tablosu">
-          <thead><tr><th>Ürün Adı</th><th>OEM Kod</th><th>Marka</th><th>Model</th><th>Stok</th><th>Fiyat</th><th>İşlem</th></tr></thead>
+          <thead><tr><th>Ürün Adı</th><th>OEM Kod</th><th>Marka</th><th>Model</th><th>Stok</th><th>Fiyat</th><th>KDV</th><th>Toplam Fiyat</th><th>İşlem</th></tr></thead>
           <tbody>${satirlar}</tbody>
         </table>
       `;
@@ -367,6 +378,7 @@
       document.getElementById("resimUrlGiris").value = u.resim_url || "";
       document.getElementById("eskiFiyatGiris").value = u.eski_fiyat || "";
       document.getElementById("kritikStokGiris").value = u.kritik_stok || "";
+      document.getElementById("kdvOraniGiris").value = u.kdv_orani != null ? u.kdv_orani : 20;
       document.getElementById("urunFormBaslik").innerText = "Ürünü Düzenle";
       document.getElementById("urunKaydetBtn").innerText = "Güncelle";
       window.scrollTo(0, 0);
@@ -374,7 +386,7 @@
 
     function urunFormTemizle() {
       document.getElementById("urunDuzenleId").value = "";
-      ["urunAdiGiris","oemKoduGiris","markaGiris","modelGiris","yilGiris","stokGiris","fiyatGiris","resimUrlGiris","eskiFiyatGiris","kritikStokGiris"]
+      ["urunAdiGiris","oemKoduGiris","markaGiris","modelGiris","yilGiris","stokGiris","fiyatGiris","resimUrlGiris","eskiFiyatGiris","kritikStokGiris","kdvOraniGiris"]
         .forEach(id => document.getElementById(id).value = "");
       document.getElementById("urunFormBaslik").innerText = "Yeni Ürün Ekle";
       document.getElementById("urunKaydetBtn").innerText = "Ürünü Ekle";
@@ -392,7 +404,8 @@
         fiyat: parseFloat(document.getElementById("fiyatGiris").value) || 0,
         resim_url: document.getElementById("resimUrlGiris").value,
         eski_fiyat: document.getElementById("eskiFiyatGiris").value ? parseFloat(document.getElementById("eskiFiyatGiris").value) : null,
-        kritik_stok: parseInt(document.getElementById("kritikStokGiris").value) || 5
+        kritik_stok: parseInt(document.getElementById("kritikStokGiris").value) || 5,
+        kdv_orani: document.getElementById("kdvOraniGiris").value ? parseFloat(document.getElementById("kdvOraniGiris").value) : 20
       };
 
       if (!kayit.urun_adi) { alert("Ürün adı boş olamaz."); return; }
@@ -443,9 +456,9 @@
             <td>${b.yetkili_kisi || "-"}</td>
             <td>${b.telefon || "-"}</td>
             <td>${b.kullanici_adi}</td>
-            <td>${bakiye} TL</td>
-            <td>${krediLimiti} TL</td>
-            <td style="${renk}">${kullanilabilir} TL</td>
+            <td>${paraFormat(bakiye)}</td>
+            <td>${paraFormat(krediLimiti)}</td>
+            <td style="${renk}">${paraFormat(kullanilabilir)}</td>
             <td class="aksiyonlar">
               <button class="duzenle-btn" onclick="bayiDuzenle(${b.id})">Düzenle</button>
               <button class="duzenle-btn" style="background:#2c6e91;" onclick="bakiyeSenkronizeEt(${b.id})">Senkronize Et</button>
@@ -539,7 +552,7 @@
 
       if (guncelleHata) { alert("Hata: " + guncelleHata.message); return; }
 
-      alert("Bakiye senkronize edildi: " + toplam + " TL");
+      alert("Bakiye senkronize edildi: " + paraFormat(toplam));
       bayileriGetir();
     }
 
@@ -581,7 +594,7 @@
             <td>${firmaAdi}</td>
             <td>${s.urun_adi || "-"}</td>
             <td>${s.adet}</td>
-            <td>${s.tutar || "-"} TL</td>
+            <td>${s.tutar ? paraFormat(s.tutar) : "-"}</td>
             <td>
               <select class="durum-secim" onchange="siparisDurumGuncelle(${s.id}, 'durum', this.value)">
                 <option value="beklemede" ${s.durum === 'beklemede' ? 'selected' : ''}>Beklemede</option>
@@ -698,9 +711,9 @@
             <td>${h.tarih}</td>
             <td>${h.aciklama}</td>
             <td>${h.evrak_no || "-"}</td>
-            <td>${borc > 0 ? borc + " TL" : "-"}</td>
-            <td>${alacak > 0 ? alacak + " TL" : "-"}</td>
-            <td>${bakiye} TL</td>
+            <td>${borc > 0 ? paraFormat(borc) : "-"}</td>
+            <td>${alacak > 0 ? paraFormat(alacak) : "-"}</td>
+            <td>${paraFormat(bakiye)}</td>
             <td><button class="sil-btn" onclick="hesapHareketiSil(${h.id})">Sil</button></td>
           </tr>
         `;
