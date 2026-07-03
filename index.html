@@ -341,6 +341,7 @@
       <span>Çukurova<br>Otomotiv ve Yedek Parça</span>
     </div>
     <div class="nav-item aktif" id="navArama" onclick="sekmeGoster('arama')">🔍 <span class="metin">Arama</span></div>
+    <div class="nav-item" id="navKategoriler" onclick="sekmeGoster('kategoriler')">📂 <span class="metin">Kategoriler</span></div>
     <div class="nav-item" id="navSepet" onclick="sekmeGoster('sepet')">🛒 <span class="metin">Sepet</span><span class="nav-rozet" id="sepetSayisi" style="display:none;">0</span></div>
     <div class="nav-item" id="navSiparis" onclick="sekmeGoster('siparis')">📦 <span class="metin">Siparişlerim</span></div>
     <div class="nav-item" id="navHesap" onclick="sekmeGoster('hesap')">💳 <span class="metin">Hesabım</span></div>
@@ -370,6 +371,36 @@
           <button onclick="urunAra()">🔍 Ara</button>
         </div>
         <div id="sonuclar" class="urun-grid"></div>
+      </div>
+
+      <!-- KATEGORİLER SEKMESİ -->
+      <div id="kategorilerSekmesi" class="sekme-icerik">
+        <div class="arama-cubugu" style="flex-direction:column; align-items:stretch; gap:14px;">
+          <h3 style="font-size:15px; color:var(--navy); margin:0;">🚗 Marka / Model / Yıl ile Gez</h3>
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <select id="katMarkaSecim" style="flex:1; min-width:150px;" onchange="katModelleriGetir()">
+              <option value="">Marka Seçiniz</option>
+            </select>
+            <select id="katModelSecim" style="flex:1; min-width:150px;" onchange="katYillariGetir()">
+              <option value="">Model Seçiniz</option>
+            </select>
+            <select id="katYilSecim" style="flex:1; min-width:150px;">
+              <option value="">Yıl Seçiniz</option>
+            </select>
+            <button onclick="kategoriUrunleriGetir()">Ürünleri Listele</button>
+          </div>
+        </div>
+
+        <div class="arama-cubugu" style="flex-direction:column; align-items:stretch; gap:14px; margin-top:16px;">
+          <h3 style="font-size:15px; color:var(--navy); margin:0;">🔑 Şase No (VIN) ile Ara</h3>
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <input type="text" id="vinGiris" placeholder="17 haneli şase numarasını girin" maxlength="17" style="flex:1; min-width:220px; padding:12px 16px; border:1px solid var(--border); border-radius:8px; font-size:14px; text-transform:uppercase;">
+            <button onclick="vinCoz()">Şase Numarasını Çöz</button>
+          </div>
+          <p id="vinSonucMesaji" style="font-size:13px; color:var(--text-muted); margin:0;"></p>
+        </div>
+
+        <div id="kategoriSonuclar" class="urun-grid" style="margin-top:20px;"></div>
       </div>
 
       <!-- SEPET SEKMESİ -->
@@ -481,6 +512,7 @@
 
     const sekmeBasliklari = {
       arama: "Ürün Arama",
+      kategoriler: "Kategoriler",
       sepet: "Sepetim",
       siparis: "Siparişlerim",
       hesap: "Hesabım",
@@ -489,8 +521,8 @@
     };
 
     async function sekmeGoster(hangisi) {
-      const sekmeler = { arama: "aramaSekmesi", sepet: "sepetSekmesi", siparis: "siparisSekmesi", hesap: "hesapSekmesi", ayarlar: "ayarlarSekmesi", pos: "posSekmesi" };
-      const navlar = { arama: "navArama", sepet: "navSepet", siparis: "navSiparis", hesap: "navHesap", ayarlar: "navAyarlar", pos: "navPos" };
+      const sekmeler = { arama: "aramaSekmesi", kategoriler: "kategorilerSekmesi", sepet: "sepetSekmesi", siparis: "siparisSekmesi", hesap: "hesapSekmesi", ayarlar: "ayarlarSekmesi", pos: "posSekmesi" };
+      const navlar = { arama: "navArama", kategoriler: "navKategoriler", sepet: "navSepet", siparis: "navSiparis", hesap: "navHesap", ayarlar: "navAyarlar", pos: "navPos" };
 
       Object.keys(sekmeler).forEach(function(key) {
         document.getElementById(sekmeler[key]).classList.remove("aktif-icerik");
@@ -505,6 +537,7 @@
       if (hangisi === 'siparis') siparislerimGetir();
       if (hangisi === 'sepet') bayiBilgisiniTazele();
       if (hangisi === 'ayarlar') { await bayiBilgisiniTazele(); ayarlariDoldur(); }
+      if (hangisi === 'kategoriler') kategorileriYukle();
     }
 
     async function girisYap() {
@@ -587,28 +620,16 @@
       }
     });
 
-    async function urunAra() {
-      const aranan = document.getElementById("aramaKutusu").value;
-      const sonucAlani = document.getElementById("sonuclar");
-      sonucAlani.innerHTML = "Aranıyor...";
-
-      const { data, error } = await supabaseClient
-        .from("urunler")
-        .select("*")
-        .ilike("urun_adi", "%" + aranan + "%");
-
-      if (error) {
-        sonucAlani.innerHTML = "Bir hata oluştu: " + error.message;
+    // Ürün listesini kart şeklinde bir alana çizer. Hem Arama, hem Kategoriler,
+    // hem de Şase No (VIN) sonuçları bu ortak fonksiyonu kullanır.
+    function urunKartlariniCiz(urunler, hedefAlan) {
+      if (!urunler || urunler.length === 0) {
+        hedefAlan.innerHTML = "Sonuç bulunamadı.";
         return;
       }
 
-      if (data.length === 0) {
-        sonucAlani.innerHTML = "Sonuç bulunamadı.";
-        return;
-      }
-
-      sonucAlani.innerHTML = "";
-      data.forEach(function(urun) {
+      hedefAlan.innerHTML = "";
+      urunler.forEach(function(urun) {
         const stokVarMi = urun.stok_adet > 0;
         const gorselIcerik = urun.resim_url
           ? `<img src="${urun.resim_url}" alt="${urun.urun_adi}">`
@@ -619,7 +640,7 @@
         const kdvliFiyat = urun.fiyat + kdvTutari;
         const eskiVarMi = urun.eski_fiyat && urun.eski_fiyat > 0;
 
-        sonucAlani.innerHTML += `
+        hedefAlan.innerHTML += `
           <div class="urun-karti">
             <div class="urun-gorsel">${gorselIcerik}</div>
             <div class="urun-detay">
@@ -638,6 +659,161 @@
           </div>
         `;
       });
+    }
+
+    async function urunAra() {
+      const aranan = document.getElementById("aramaKutusu").value;
+      const sonucAlani = document.getElementById("sonuclar");
+      sonucAlani.innerHTML = "Aranıyor...";
+
+      const { data, error } = await supabaseClient
+        .from("urunler")
+        .select("*")
+        .ilike("urun_adi", "%" + aranan + "%");
+
+      if (error) {
+        sonucAlani.innerHTML = "Bir hata oluştu: " + error.message;
+        return;
+      }
+
+      urunKartlariniCiz(data, sonucAlani);
+    }
+
+    /* ---------------- KATEGORİLER (Marka / Model / Yıl) ---------------- */
+
+    async function kategorileriYukle() {
+      const markaSecim = document.getElementById("katMarkaSecim");
+      if (markaSecim.options.length > 1) return; // zaten yüklendi, tekrar sorgulama
+
+      const { data, error } = await supabaseClient.from("urunler").select("marka").not("marka", "is", null);
+      if (error || !data) return;
+
+      const markalar = [...new Set(data.map(d => (d.marka || "").trim()).filter(Boolean))].sort();
+      markaSecim.innerHTML = '<option value="">Marka Seçiniz</option>' +
+        markalar.map(m => `<option value="${m}">${m}</option>`).join("");
+    }
+
+    async function katModelleriGetir() {
+      const marka = document.getElementById("katMarkaSecim").value;
+      const modelSecim = document.getElementById("katModelSecim");
+      const yilSecim = document.getElementById("katYilSecim");
+      modelSecim.innerHTML = '<option value="">Model Seçiniz</option>';
+      yilSecim.innerHTML = '<option value="">Yıl Seçiniz</option>';
+      if (!marka) return;
+
+      const { data, error } = await supabaseClient
+        .from("urunler")
+        .select("model")
+        .eq("marka", marka)
+        .not("model", "is", null);
+      if (error || !data) return;
+
+      const modeller = [...new Set(data.map(d => (d.model || "").trim()).filter(Boolean))].sort();
+      modelSecim.innerHTML = '<option value="">Model Seçiniz</option>' +
+        modeller.map(m => `<option value="${m}">${m}</option>`).join("");
+    }
+
+    async function katYillariGetir() {
+      const marka = document.getElementById("katMarkaSecim").value;
+      const model = document.getElementById("katModelSecim").value;
+      const yilSecim = document.getElementById("katYilSecim");
+      yilSecim.innerHTML = '<option value="">Yıl Seçiniz</option>';
+      if (!marka || !model) return;
+
+      const { data, error } = await supabaseClient
+        .from("urunler")
+        .select("yil")
+        .eq("marka", marka)
+        .eq("model", model)
+        .not("yil", "is", null);
+      if (error || !data) return;
+
+      const yillar = [...new Set(data.map(d => (d.yil || "").trim()).filter(Boolean))].sort();
+      yilSecim.innerHTML = '<option value="">Yıl Seçiniz</option>' +
+        yillar.map(y => `<option value="${y}">${y}</option>`).join("");
+    }
+
+    async function kategoriUrunleriGetir() {
+      const marka = document.getElementById("katMarkaSecim").value;
+      const model = document.getElementById("katModelSecim").value;
+      const yil = document.getElementById("katYilSecim").value;
+      const alan = document.getElementById("kategoriSonuclar");
+
+      if (!marka) {
+        alert("Lütfen en azından bir marka seçin.");
+        return;
+      }
+
+      alan.innerHTML = "Yükleniyor...";
+
+      let sorgu = supabaseClient.from("urunler").select("*").eq("marka", marka);
+      if (model) sorgu = sorgu.eq("model", model);
+      if (yil) sorgu = sorgu.eq("yil", yil);
+
+      const { data, error } = await sorgu;
+      if (error) { alan.innerHTML = "Hata: " + error.message; return; }
+
+      urunKartlariniCiz(data, alan);
+    }
+
+    /* ---------------- ŞASE NO (VIN) İLE ARAMA ---------------- */
+
+    async function vinCoz() {
+      const vinInput = document.getElementById("vinGiris");
+      const mesajAlani = document.getElementById("vinSonucMesaji");
+      const sonucAlani = document.getElementById("kategoriSonuclar");
+      const vin = vinInput.value.trim().toUpperCase();
+
+      if (vin.length !== 17) {
+        mesajAlani.style.color = "var(--danger)";
+        mesajAlani.innerHTML = "Şase numarası 17 karakter olmalı.";
+        return;
+      }
+
+      mesajAlani.style.color = "var(--text-muted)";
+      mesajAlani.innerHTML = "Çözümleniyor...";
+      sonucAlani.innerHTML = "";
+
+      try {
+        const yanit = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/decodevinvalues/${vin}?format=json`);
+        const veri = await yanit.json();
+        const sonuc = veri.Results && veri.Results[0];
+
+        if (!sonuc || !sonuc.Make) {
+          mesajAlani.style.color = "var(--danger)";
+          mesajAlani.innerHTML = "Bu şase numarası çözümlenemedi. Yukarıdan Marka/Model/Yıl'ı manuel seçerek arayabilirsiniz.";
+          return;
+        }
+
+        const marka = sonuc.Make;
+        const model = sonuc.Model;
+        const yil = sonuc.ModelYear;
+        const aracBilgisi = `${marka}${model ? ' ' + model : ''}${yil ? ' (' + yil + ')' : ''}`;
+
+        let sorgu = supabaseClient.from("urunler").select("*").ilike("marka", `%${marka}%`);
+        if (model) sorgu = sorgu.ilike("model", `%${model}%`);
+        const { data, error } = await sorgu;
+
+        if (error) {
+          mesajAlani.style.color = "var(--danger)";
+          mesajAlani.innerHTML = `Çözümlenen araç: <strong>${aracBilgisi}</strong>. Ancak ürün aranırken bir hata oluştu.`;
+          return;
+        }
+
+        if (!data || data.length === 0) {
+          mesajAlani.style.color = "var(--danger)";
+          mesajAlani.innerHTML = `Çözümlenen araç: <strong>${aracBilgisi}</strong>. Stoğumuzda bu araca eşleşen ürün bulunamadı. Yukarıdan Marka/Model'i manuel seçip aramayı deneyebilirsiniz.`;
+          return;
+        }
+
+        mesajAlani.style.color = "var(--success)";
+        mesajAlani.innerHTML = `Çözümlenen araç: <strong>${aracBilgisi}</strong>. ${data.length} ürün bulundu.`;
+        urunKartlariniCiz(data, sonucAlani);
+
+      } catch (e) {
+        mesajAlani.style.color = "var(--danger)";
+        mesajAlani.innerHTML = "Şase numarası çözümlenirken bir bağlantı hatası oluştu. Lütfen tekrar deneyin.";
+      }
     }
 
     function sepeteEkle(urunId, urunAdi, fiyat, kdvOrani) {
