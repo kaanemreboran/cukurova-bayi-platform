@@ -629,6 +629,10 @@
         const kdvTutari = urun.fiyat * (kdvOrani / 100);
         const kdvliFiyat = urun.fiyat + kdvTutari;
         const eskiVarMi = urun.eski_fiyat && urun.eski_fiyat > 0;
+        const muadilButonu = urun.oem_kodu
+          ? `<button class="duzenle-btn" style="width:100%; background:#2c6e91; margin-top:6px;" onclick="muadilGoster(${urun.id}, '${(urun.oem_kodu || '').replace(/'/g, "")}')">🔄 Muadil Ürünler</button>
+             <div id="muadil-${urun.id}"></div>`
+          : "";
 
         hedefAlan.innerHTML += `
           <div class="urun-karti">
@@ -637,7 +641,7 @@
               <span class="stok-etiket ${stokVarMi ? 'stok-var' : 'stok-yok'}">${stokVarMi ? urun.stok_adet + ' adet stokta' : 'Stok yok'}</span>
               <div class="ad">${urun.urun_adi}</div>
               <div class="meta">${urun.marka} | ${urun.model} | ${urun.yil}</div>
-              <div class="meta">OEM: ${urun.oem_kodu}</div>
+              <div class="meta">OEM: ${urun.oem_kodu || '-'}</div>
               <div class="fiyat-detay">
                 ${eskiVarMi ? `<div class="fiyat-satiri eski"><span>Eski Fiyat:</span><s>${paraFormat(urun.eski_fiyat)}</s></div>` : ''}
                 <div class="fiyat-satiri"><span>Fiyat:</span><strong>${paraFormat(urun.fiyat)}</strong></div>
@@ -645,10 +649,61 @@
                 <div class="fiyat-satiri toplam"><span>Toplam:</span><strong>${paraFormat(kdvliFiyat)}</strong></div>
               </div>
               <button class="ekle-btn" onclick="sepeteEkle(${urun.id}, '${urun.urun_adi.replace(/'/g, "")}', ${urun.fiyat}, ${kdvOrani})">Sepete Ekle</button>
+              ${muadilButonu}
             </div>
           </div>
         `;
       });
+    }
+
+    // Bir ürünün OEM kodu ile eşleşen diğer marka/ürün seçeneklerini kartın
+    // altına açar (tekrar tıklanınca kapanır).
+    async function muadilGoster(urunId, oemKodu) {
+      const alan = document.getElementById(`muadil-${urunId}`);
+      if (!alan || !oemKodu) return;
+
+      if (alan.dataset.acik === "1") {
+        alan.innerHTML = "";
+        alan.dataset.acik = "0";
+        return;
+      }
+
+      alan.innerHTML = "<p style='font-size:12px; color:var(--text-muted); margin-top:8px;'>Aranıyor...</p>";
+
+      const { data, error } = await supabaseClient
+        .from("urunler")
+        .select("*")
+        .eq("oem_kodu", oemKodu)
+        .neq("id", urunId);
+
+      if (error) {
+        alan.innerHTML = "<p style='font-size:12px; color:var(--danger); margin-top:8px;'>Hata: " + error.message + "</p>";
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        alan.innerHTML = "<p style='font-size:12px; color:var(--text-muted); margin-top:8px;'>Bu ürün için muadil bulunamadı.</p>";
+        alan.dataset.acik = "1";
+        return;
+      }
+
+      let icerik = "<div style='border-top:1px dashed var(--border); margin-top:8px; padding-top:8px;'>";
+      data.forEach(function(m) {
+        const mKdvOrani = m.kdv_orani != null ? m.kdv_orani : 20;
+        const mKdvliFiyat = m.fiyat + (m.fiyat * mKdvOrani / 100);
+        icerik += `
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid var(--border); font-size:12px;">
+            <div>
+              <strong>${m.marka || '-'}</strong><br>
+              <span style="color:var(--text-muted);">${paraFormat(mKdvliFiyat)} (KDV dahil)</span>
+            </div>
+            <button class="ekle-btn" style="padding:5px 10px; font-size:11px; flex-shrink:0;" onclick="sepeteEkle(${m.id}, '${(m.urun_adi || '').replace(/'/g, "")}', ${m.fiyat}, ${mKdvOrani})">Sepete Ekle</button>
+          </div>
+        `;
+      });
+      icerik += "</div>";
+      alan.innerHTML = icerik;
+      alan.dataset.acik = "1";
     }
 
     async function urunAra() {
