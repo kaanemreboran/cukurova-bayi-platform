@@ -229,6 +229,12 @@
     .urun-detay .ad { font-weight: 700; font-size: 14px; color: var(--navy); }
     .urun-detay .meta { font-size: 12px; color: var(--text-muted); }
     .urun-detay .fiyat { font-size: 18px; font-weight: bold; color: var(--navy); margin-top: 6px; }
+    .fiyat-detay { margin-top: 8px; border-top: 1px solid var(--border); padding-top: 8px; }
+    .fiyat-satiri { display: flex; justify-content: space-between; font-size: 13px; padding: 2px 0; color: var(--text-muted); }
+    .fiyat-satiri strong { color: var(--navy); font-weight: 700; }
+    .fiyat-satiri.eski s { color: #b5453a; }
+    .fiyat-satiri.toplam { border-top: 1px dashed var(--border); margin-top: 4px; padding-top: 6px; font-size: 15px; }
+    .fiyat-satiri.toplam strong { color: var(--gold); font-size: 17px; }
     .urun-detay button { margin-top: 8px; width: 100%; }
     .stok-etiket {
       font-size: 11px;
@@ -433,6 +439,12 @@
     let girisYapanBayi = null;
     let sepet = [];
 
+    // Sayıyı "1.250,50 TL" formatında (Türkçe, kuruşlu) gösterir
+    function paraFormat(sayi) {
+      const n = Number(sayi) || 0;
+      return n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' TL';
+    }
+
     const sekmeBasliklari = {
       arama: "Ürün Arama",
       sepet: "Sepetim",
@@ -487,7 +499,7 @@
       document.getElementById("anaIcerik").style.flexDirection = "column";
 
       document.getElementById("topbarFirma").innerText = girisYapanBayi.firma_adi;
-      document.getElementById("topbarBakiye").innerText = "Bakiye: " + girisYapanBayi.bakiye + " TL";
+      document.getElementById("topbarBakiye").innerText = "Bakiye: " + paraFormat(girisYapanBayi.bakiye);
       document.getElementById("topbarAvatar").innerText = girisYapanBayi.firma_adi.charAt(0).toUpperCase();
 
       bayiBilgisiniTazele();
@@ -508,7 +520,7 @@
       girisYapanBayi = data;
       localStorage.setItem("cukurovaBayiOturum", JSON.stringify(girisYapanBayi));
       document.getElementById("topbarFirma").innerText = girisYapanBayi.firma_adi;
-      document.getElementById("topbarBakiye").innerText = "Bakiye: " + girisYapanBayi.bakiye + " TL";
+      document.getElementById("topbarBakiye").innerText = "Bakiye: " + paraFormat(girisYapanBayi.bakiye);
     }
 
     function cikisYap() {
@@ -558,6 +570,11 @@
           ? `<img src="${urun.resim_url}" alt="${urun.urun_adi}">`
           : "🔧";
 
+        const kdvOrani = urun.kdv_orani != null ? urun.kdv_orani : 20;
+        const kdvTutari = urun.fiyat * (kdvOrani / 100);
+        const kdvliFiyat = urun.fiyat + kdvTutari;
+        const eskiVarMi = urun.eski_fiyat && urun.eski_fiyat > 0;
+
         sonucAlani.innerHTML += `
           <div class="urun-karti">
             <div class="urun-gorsel">${gorselIcerik}</div>
@@ -566,20 +583,25 @@
               <div class="ad">${urun.urun_adi}</div>
               <div class="meta">${urun.marka} | ${urun.model} | ${urun.yil}</div>
               <div class="meta">OEM: ${urun.oem_kodu}</div>
-              <div class="fiyat">${urun.eski_fiyat ? `<s style="color:#999; font-size:14px; font-weight:normal;">${urun.eski_fiyat} TL</s> ` : ''}${urun.fiyat} TL</div>
-              <button class="ekle-btn" onclick="sepeteEkle(${urun.id}, '${urun.urun_adi.replace(/'/g, "")}', ${urun.fiyat})">Sepete Ekle</button>
+              <div class="fiyat-detay">
+                ${eskiVarMi ? `<div class="fiyat-satiri eski"><span>Eski Fiyat:</span><s>${paraFormat(urun.eski_fiyat)}</s></div>` : ''}
+                <div class="fiyat-satiri"><span>Fiyat:</span><strong>${paraFormat(urun.fiyat)}</strong></div>
+                <div class="fiyat-satiri"><span>KDV (%${kdvOrani}):</span><strong>${paraFormat(kdvTutari)}</strong></div>
+                <div class="fiyat-satiri toplam"><span>Toplam:</span><strong>${paraFormat(kdvliFiyat)}</strong></div>
+              </div>
+              <button class="ekle-btn" onclick="sepeteEkle(${urun.id}, '${urun.urun_adi.replace(/'/g, "")}', ${urun.fiyat}, ${kdvOrani})">Sepete Ekle</button>
             </div>
           </div>
         `;
       });
     }
 
-    function sepeteEkle(urunId, urunAdi, fiyat) {
+    function sepeteEkle(urunId, urunAdi, fiyat, kdvOrani) {
       const mevcut = sepet.find(item => item.urunId === urunId);
       if (mevcut) {
         mevcut.adet += 1;
       } else {
-        sepet.push({ urunId: urunId, urunAdi: urunAdi, fiyat: fiyat, adet: 1 });
+        sepet.push({ urunId: urunId, urunAdi: urunAdi, fiyat: fiyat, kdvOrani: kdvOrani, adet: 1 });
       }
       sepetiGoster();
     }
@@ -610,20 +632,42 @@
         return;
       }
 
-      let toplam = 0;
-      sepetAlani.innerHTML = "";
+      let araToplam = 0;
+      let kdvToplam = 0;
+      let satirlar = "";
       sepet.forEach(function(item) {
-        const satirToplam = item.fiyat * item.adet;
-        toplam += satirToplam;
-        sepetAlani.innerHTML += `
-          <div class="sepet-satiri">
-            <span>${item.urunAdi} — ${item.adet} adet x ${item.fiyat} TL = ${satirToplam} TL</span>
-            <button class="sil-btn" onclick="sepettenSil(${item.urunId})">Sil</button>
-          </div>
+        const kdvOrani = item.kdvOrani != null ? item.kdvOrani : 20;
+        const satirNet = item.fiyat * item.adet;
+        const satirKdv = satirNet * (kdvOrani / 100);
+        const satirKdvli = satirNet + satirKdv;
+        araToplam += satirNet;
+        kdvToplam += satirKdv;
+        satirlar += `
+          <tr>
+            <td>${item.urunAdi}</td>
+            <td>${item.adet}</td>
+            <td>${paraFormat(satirNet)}</td>
+            <td>${paraFormat(satirKdv)}</td>
+            <td><strong>${paraFormat(satirKdvli)}</strong></td>
+            <td><button class="sil-btn" onclick="sepettenSil(${item.urunId})">Sil</button></td>
+          </tr>
         `;
       });
 
-      sepetToplam.innerHTML = "Toplam: " + toplam + " TL";
+      sepetAlani.innerHTML = `
+        <table class="veri-tablosu">
+          <thead>
+            <tr><th>Ürün</th><th>Adet</th><th>Fiyat</th><th>KDV</th><th>Toplam Fiyat</th><th></th></tr>
+          </thead>
+          <tbody>${satirlar}</tbody>
+        </table>
+      `;
+
+      const genelToplam = araToplam + kdvToplam;
+      sepetToplam.innerHTML =
+        "Ara Toplam: " + paraFormat(araToplam) + "<br>" +
+        "KDV Tutarı: " + paraFormat(kdvToplam) + "<br>" +
+        "<span style='font-size:19px;'>Genel Toplam: " + paraFormat(genelToplam) + "</span>";
       gonderBtn.style.display = "inline-block";
     }
 
@@ -632,7 +676,14 @@
 
       await bayiBilgisiniTazele();
 
-      const sepetToplami = sepet.reduce((acc, item) => acc + (item.fiyat * item.adet), 0);
+      // KDV dahil gerçek tutarı hesapla (bayinin gerçekte borçlanacağı miktar)
+      const sepetToplamiNet = sepet.reduce((acc, item) => acc + (item.fiyat * item.adet), 0);
+      const sepetToplamiKdv = sepet.reduce((acc, item) => {
+        const oran = item.kdvOrani != null ? item.kdvOrani : 20;
+        return acc + (item.fiyat * item.adet * (oran / 100));
+      }, 0);
+      const sepetToplami = sepetToplamiNet + sepetToplamiKdv; // KDV dahil
+
       const mevcutBorc = parseFloat(girisYapanBayi.bakiye) || 0;
       const krediLimiti = parseFloat(girisYapanBayi.kredi_limiti) || 0;
       const yeniToplamBorc = mevcutBorc + sepetToplami;
@@ -641,44 +692,46 @@
         const asilanTutar = (yeniToplamBorc - krediLimiti).toFixed(2);
         alert(
           "⚠️ Sipariş gönderilemedi.\n\n" +
-          "Bu sipariş, kredi limitinizi " + asilanTutar + " TL aşıyor.\n" +
-          "Mevcut Bakiyeniz: " + mevcutBorc + " TL\n" +
-          "Kredi Limitiniz: " + krediLimiti + " TL\n\n" +
+          "Bu sipariş (KDV dahil " + paraFormat(sepetToplami) + "), kredi limitinizi " + paraFormat(asilanTutar) + " aşıyor.\n" +
+          "Mevcut Bakiyeniz: " + paraFormat(mevcutBorc) + "\n" +
+          "Kredi Limitiniz: " + paraFormat(krediLimiti) + "\n\n" +
           "Lütfen ödeme yapın veya bizimle iletişime geçin: 0546 265 47 47"
         );
         return;
       }
 
       for (const item of sepet) {
+        const oran = item.kdvOrani != null ? item.kdvOrani : 20;
+        const satirKdvli = item.fiyat * item.adet * (1 + oran / 100);
         await supabaseClient.from("siparisler").insert({
           bayi_id: girisYapanBayi.id,
           urun_id: item.urunId,
           urun_adi: item.urunAdi,
           adet: item.adet,
-          tutar: item.fiyat * item.adet,
+          tutar: Math.round(satirKdvli * 100) / 100,
           durum: "beklemede",
           odeme_durumu: "Ödenmedi"
         });
       }
 
-      // Bakiyeyi sipariş tutarı kadar artır
+      // Bakiyeyi sipariş tutarı (KDV dahil) kadar artır
       const yeniBakiye = mevcutBorc + sepetToplami;
       await supabaseClient.from("bayiler").update({ bakiye: yeniBakiye }).eq("id", girisYapanBayi.id);
 
-      // Hesap hareketlerine de "Sipariş" olarak borç kaydı düş
+      // Hesap hareketlerine de "Sipariş" olarak borç kaydı düş (KDV dahil)
       await supabaseClient.from("hesap_hareketleri").insert({
         bayi_id: girisYapanBayi.id,
         tarih: new Date().toISOString().split("T")[0],
-        aciklama: "Sipariş",
+        aciklama: "Sipariş (KDV Dahil)",
         evrak_no: "",
-        borc: sepetToplami,
+        borc: Math.round(sepetToplami * 100) / 100,
         alacak: 0
       });
 
       // Güncel bakiyeyi hafızada ve tarayıcıda da güncelle
       girisYapanBayi.bakiye = yeniBakiye;
       localStorage.setItem("cukurovaBayiOturum", JSON.stringify(girisYapanBayi));
-      document.getElementById("topbarBakiye").innerText = "Bakiye: " + yeniBakiye + " TL";
+      document.getElementById("topbarBakiye").innerText = "Bakiye: " + paraFormat(yeniBakiye);
 
       let mesaj = "Merhaba, " + girisYapanBayi.firma_adi + " olarak sipariş vermek istiyorum:%0A%0A";
       sepet.forEach(function(item) {
@@ -723,7 +776,7 @@
       };
       data.forEach(function(siparis) {
         const tarih = siparis.created_at ? siparis.created_at.split("T")[0] : "-";
-        const tutar = siparis.tutar ? siparis.tutar + " TL" : "-";
+        const tutar = siparis.tutar ? paraFormat(siparis.tutar) : "-";
         const odemeSinifi = siparis.odeme_durumu === "Ödendi" ? "durum-odendi" : "durum-odenmedi";
         const odemeDurumu = siparis.odeme_durumu || "Ödenmedi";
         const siparisDurumuMetin = durumMetinleri[siparis.durum] || siparis.durum;
@@ -781,7 +834,7 @@
         document.getElementById("toplamOdenen").innerHTML = "0 TL";
         document.getElementById("kalanBakiye").innerHTML = "0 TL";
         const krediLimitiBos = parseFloat(girisYapanBayi.kredi_limiti) || 0;
-        document.getElementById("kullanilabilirLimit").innerHTML = krediLimitiBos + " TL";
+        document.getElementById("kullanilabilirLimit").innerHTML = paraFormat(krediLimitiBos);
         return;
       }
 
@@ -811,22 +864,22 @@
             <td>${hareket.tarih}</td>
             <td>${hareket.aciklama}</td>
             <td>${hareket.evrak_no || "-"}</td>
-            <td>${borc > 0 ? borc + " TL" : "-"}</td>
-            <td>${alacak > 0 ? alacak + " TL" : "-"}</td>
-            <td>${bakiye} TL</td>
+            <td>${borc > 0 ? paraFormat(borc) : "-"}</td>
+            <td>${alacak > 0 ? paraFormat(alacak) : "-"}</td>
+            <td>${paraFormat(bakiye)}</td>
             <td>${durumYazi}</td>
           </tr>
         `;
       });
 
-      document.getElementById("toplamBorc").innerHTML = toplamBorc + " TL";
-      document.getElementById("toplamOdenen").innerHTML = toplamAlacak + " TL";
-      document.getElementById("kalanBakiye").innerHTML = bakiye + " TL";
+      document.getElementById("toplamBorc").innerHTML = paraFormat(toplamBorc);
+      document.getElementById("toplamOdenen").innerHTML = paraFormat(toplamAlacak);
+      document.getElementById("kalanBakiye").innerHTML = paraFormat(bakiye);
 
       const krediLimiti = parseFloat(girisYapanBayi.kredi_limiti) || 0;
       const kullanilabilir = krediLimiti - bakiye;
       const limitKutusu = document.getElementById("kullanilabilirLimit");
-      limitKutusu.innerHTML = kullanilabilir + " TL";
+      limitKutusu.innerHTML = paraFormat(kullanilabilir);
       limitKutusu.style.color = kullanilabilir < 0 ? "#c0392b" : "#2e7d32";
 
       alan.innerHTML = `
