@@ -175,6 +175,8 @@
             <input type="number" id="stokGiris" placeholder="Stok Adedi">
             <input type="number" id="fiyatGiris" placeholder="Fiyat (TL)">
             <input type="text" id="resimUrlGiris" placeholder="Resim URL (opsiyonel)">
+            <input type="number" id="eskiFiyatGiris" placeholder="Eski Fiyat (kampanya için, opsiyonel)">
+            <input type="number" id="kritikStokGiris" placeholder="Kritik Stok Eşiği (varsayılan 5)">
           </div>
           <div class="form-butonlar">
             <button class="ekle-btn" onclick="urunKaydet()" id="urunKaydetBtn">Ürünü Ekle</button>
@@ -324,14 +326,17 @@
 
       let satirlar = "";
       data.forEach(function(u) {
+        const kritikMi = u.stok_adet <= (u.kritik_stok || 5);
+        const satirStili = kritikMi ? 'style="background:#fdeceb;"' : '';
+        const stokMetni = kritikMi ? `⚠️ ${u.stok_adet}` : u.stok_adet;
         satirlar += `
-          <tr>
+          <tr ${satirStili}>
             <td>${u.urun_adi}</td>
             <td>${u.oem_kodu || "-"}</td>
             <td>${u.marka || "-"}</td>
             <td>${u.model || "-"}</td>
-            <td>${u.stok_adet}</td>
-            <td>${u.fiyat} TL</td>
+            <td>${stokMetni}</td>
+            <td>${u.eski_fiyat ? `<s style="color:#999;">${u.eski_fiyat} TL</s> ` : ''}${u.fiyat} TL</td>
             <td class="aksiyonlar">
               <button class="duzenle-btn" onclick="urunDuzenle(${u.id})">Düzenle</button>
               <button class="sil-btn" onclick="urunSil(${u.id})">Sil</button>
@@ -360,6 +365,8 @@
       document.getElementById("stokGiris").value = u.stok_adet || "";
       document.getElementById("fiyatGiris").value = u.fiyat || "";
       document.getElementById("resimUrlGiris").value = u.resim_url || "";
+      document.getElementById("eskiFiyatGiris").value = u.eski_fiyat || "";
+      document.getElementById("kritikStokGiris").value = u.kritik_stok || "";
       document.getElementById("urunFormBaslik").innerText = "Ürünü Düzenle";
       document.getElementById("urunKaydetBtn").innerText = "Güncelle";
       window.scrollTo(0, 0);
@@ -367,7 +374,7 @@
 
     function urunFormTemizle() {
       document.getElementById("urunDuzenleId").value = "";
-      ["urunAdiGiris","oemKoduGiris","markaGiris","modelGiris","yilGiris","stokGiris","fiyatGiris","resimUrlGiris"]
+      ["urunAdiGiris","oemKoduGiris","markaGiris","modelGiris","yilGiris","stokGiris","fiyatGiris","resimUrlGiris","eskiFiyatGiris","kritikStokGiris"]
         .forEach(id => document.getElementById(id).value = "");
       document.getElementById("urunFormBaslik").innerText = "Yeni Ürün Ekle";
       document.getElementById("urunKaydetBtn").innerText = "Ürünü Ekle";
@@ -383,7 +390,9 @@
         yil: document.getElementById("yilGiris").value,
         stok_adet: parseInt(document.getElementById("stokGiris").value) || 0,
         fiyat: parseFloat(document.getElementById("fiyatGiris").value) || 0,
-        resim_url: document.getElementById("resimUrlGiris").value
+        resim_url: document.getElementById("resimUrlGiris").value,
+        eski_fiyat: document.getElementById("eskiFiyatGiris").value ? parseFloat(document.getElementById("eskiFiyatGiris").value) : null,
+        kritik_stok: parseInt(document.getElementById("kritikStokGiris").value) || 5
       };
 
       if (!kayit.urun_adi) { alert("Ürün adı boş olamaz."); return; }
