@@ -502,16 +502,17 @@
       document.getElementById("bayiDuzenleId").value = b.id;
       document.getElementById("firmaAdiGiris").value = b.firma_adi || "";
       document.getElementById("yetkiliKisiGiris").value = b.yetkili_kisi || "";
+      // Telefon, kullanıcı adı ve şifre sadece bayi OLUŞTURULURKEN belirlenir. Düzenleme
+      // sırasında admin bunları göremez/değiştiremez — bayi bunları kendi panelindeki
+      // "Ayarlar" sekmesinden kendisi değiştirir.
       document.getElementById("telefonGiris").value = b.telefon || "";
-      // Kullanıcı adı ve şifre sadece bayi OLUŞTURULURKEN belirlenir. Düzenleme sırasında
-      // admin bunları göremez/değiştiremez — şifreyi artık sadece bayinin kendisi,
-      // kendi panelinden değiştirebilir.
+      document.getElementById("telefonGiris").disabled = true;
       document.getElementById("bKullaniciAdiGiris").value = b.kullanici_adi || "";
       document.getElementById("bKullaniciAdiGiris").disabled = true;
       document.getElementById("bSifreGiris").value = "";
       document.getElementById("bSifreGiris").disabled = true;
       document.getElementById("bSifreGiris").placeholder = "Bayi kendi panelinden değiştirir";
-      document.getElementById("bSifreYardim").innerText = "Kullanıcı adı ve şifre sadece bayi oluşturulurken belirlenir. Bayi, şifresini kendi panelinden değiştirebilir.";
+      document.getElementById("bSifreYardim").innerText = "Telefon, kullanıcı adı ve şifre sadece bayi oluşturulurken belirlenir. Bayi bunları kendi panelindeki Ayarlar sekmesinden değiştirebilir.";
       document.getElementById("bakiyeGiris").value = b.bakiye || "";
       document.getElementById("krediLimitiGiris").value = b.kredi_limiti || "";
       document.getElementById("bayiFormBaslik").innerText = "Bayiyi Düzenle";
@@ -523,7 +524,8 @@
       document.getElementById("bayiDuzenleId").value = "";
       ["firmaAdiGiris","yetkiliKisiGiris","telefonGiris","bKullaniciAdiGiris","bSifreGiris","bakiyeGiris","krediLimitiGiris"]
         .forEach(id => document.getElementById(id).value = "");
-      // Yeni bayi eklerken kullanıcı adı/şifre tekrar düzenlenebilir olmalı.
+      // Yeni bayi eklerken telefon/kullanıcı adı/şifre tekrar düzenlenebilir olmalı.
+      document.getElementById("telefonGiris").disabled = false;
       document.getElementById("bKullaniciAdiGiris").disabled = false;
       document.getElementById("bSifreGiris").disabled = false;
       document.getElementById("bSifreGiris").placeholder = "Şifre";
@@ -538,7 +540,6 @@
       const kayit = {
         firma_adi: document.getElementById("firmaAdiGiris").value,
         yetkili_kisi: document.getElementById("yetkiliKisiGiris").value,
-        telefon: document.getElementById("telefonGiris").value,
         bakiye: parseFloat(document.getElementById("bakiyeGiris").value) || 0,
         kredi_limiti: parseFloat(document.getElementById("krediLimitiGiris").value) || 0
       };
@@ -550,11 +551,12 @@
 
       let hata;
       if (id) {
-        // Bayi düzenleniyor: kullanıcı adı ve şifreye HİÇ dokunulmuyor.
+        // Bayi düzenleniyor: telefon, kullanıcı adı ve şifreye HİÇ dokunulmuyor.
         const sonuc = await supabaseClient.from("bayiler").update(kayit).eq("id", id);
         hata = sonuc.error;
       } else {
-        // Yeni bayi ekleniyor: kullanıcı adı ve şifre burada, sadece bir kez belirlenir.
+        // Yeni bayi ekleniyor: telefon, kullanıcı adı ve şifre burada, sadece bir kez belirlenir.
+        const telefon = document.getElementById("telefonGiris").value.trim();
         const kullaniciAdi = document.getElementById("bKullaniciAdiGiris").value.trim();
         const girilenSifre = document.getElementById("bSifreGiris").value.trim();
 
@@ -563,6 +565,7 @@
           return;
         }
 
+        kayit.telefon = telefon;
         kayit.kullanici_adi = kullaniciAdi;
         kayit.sifre = await sha256Hex(girilenSifre);
 
