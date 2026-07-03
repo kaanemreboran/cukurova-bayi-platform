@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Çukurova Otomotiv - Bayi Platformu</title>
+  <title>Çukurova Otomotiv ve Yedek Parça</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     const SUPABASE_URL = "https://qtzacqoywboruaevdiwl.supabase.co";
@@ -318,6 +318,7 @@
   <div id="girisEkrani">
     <div class="giris-kutu">
       <img src="logo.png" alt="Çukurova Otomotiv Logo">
+      <p style="font-weight:bold; color:var(--navy); margin-bottom:18px; font-size:15px;">Çukurova Otomotiv ve Yedek Parça</p>
       <h2>Bayi Girişi</h2>
       <input type="text" id="kullaniciAdi" placeholder="Kullanıcı adı">
       <input type="password" id="sifreGiris" placeholder="Şifre">
@@ -330,7 +331,7 @@
   <div id="sidebar" style="display:none;">
     <div class="sidebar-logo">
       <img src="logo.png" alt="Logo">
-      <span>Çukurova<br>Bayi Sistemi</span>
+      <span>Çukurova<br>Otomotiv ve Yedek Parça</span>
     </div>
     <div class="nav-item aktif" id="navArama" onclick="sekmeGoster('arama')">🔍 <span class="metin">Arama</span></div>
     <div class="nav-item" id="navSepet" onclick="sekmeGoster('sepet')">🛒 <span class="metin">Sepet</span><span class="nav-rozet" id="sepetSayisi" style="display:none;">0</span></div>
@@ -469,6 +470,11 @@
       }
 
       girisYapanBayi = data[0];
+      localStorage.setItem("cukurovaBayiOturum", JSON.stringify(girisYapanBayi));
+      ekraniAc();
+    }
+
+    function ekraniAc() {
       document.getElementById("girisEkrani").style.display = "none";
       document.getElementById("sidebar").style.display = "flex";
       document.getElementById("anaIcerik").style.display = "flex";
@@ -482,12 +488,22 @@
     function cikisYap() {
       girisYapanBayi = null;
       sepet = [];
+      localStorage.removeItem("cukurovaBayiOturum");
       document.getElementById("girisEkrani").style.display = "flex";
       document.getElementById("sidebar").style.display = "none";
       document.getElementById("anaIcerik").style.display = "none";
       document.getElementById("kullaniciAdi").value = "";
       document.getElementById("sifreGiris").value = "";
     }
+
+    // Sayfa açıldığında daha önce giriş yapılmış mı diye kontrol et
+    window.addEventListener("DOMContentLoaded", function() {
+      const kayitliOturum = localStorage.getItem("cukurovaBayiOturum");
+      if (kayitliOturum) {
+        girisYapanBayi = JSON.parse(kayitliOturum);
+        ekraniAc();
+      }
+    });
 
     async function urunAra() {
       const aranan = document.getElementById("aramaKutusu").value;
