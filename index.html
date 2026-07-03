@@ -341,7 +341,6 @@
       <span>Çukurova<br>Otomotiv ve Yedek Parça</span>
     </div>
     <div class="nav-item aktif" id="navArama" onclick="sekmeGoster('arama')">🔍 <span class="metin">Arama</span></div>
-    <div class="nav-item" id="navKategoriler" onclick="sekmeGoster('kategoriler')">📂 <span class="metin">Kategoriler</span></div>
     <div class="nav-item" id="navSepet" onclick="sekmeGoster('sepet')">🛒 <span class="metin">Sepet</span><span class="nav-rozet" id="sepetSayisi" style="display:none;">0</span></div>
     <div class="nav-item" id="navSiparis" onclick="sekmeGoster('siparis')">📦 <span class="metin">Siparişlerim</span></div>
     <div class="nav-item" id="navHesap" onclick="sekmeGoster('hesap')">💳 <span class="metin">Hesabım</span></div>
@@ -370,37 +369,29 @@
           <input type="text" id="aramaKutusu" placeholder="Ürün adı veya OEM kodu girin...">
           <button onclick="urunAra()">🔍 Ara</button>
         </div>
-        <div id="sonuclar" class="urun-grid"></div>
-      </div>
 
-      <!-- KATEGORİLER SEKMESİ -->
-      <div id="kategorilerSekmesi" class="sekme-icerik">
-        <div class="arama-cubugu" style="flex-direction:column; align-items:stretch; gap:14px;">
-          <h3 style="font-size:15px; color:var(--navy); margin:0;">🚗 Marka / Model / Yıl ile Gez</h3>
-          <div style="display:flex; gap:10px; flex-wrap:wrap;">
-            <select id="katMarkaSecim" style="flex:1; min-width:150px;" onchange="katModelleriGetir()">
-              <option value="">Marka Seçiniz</option>
-            </select>
-            <select id="katModelSecim" style="flex:1; min-width:150px;" onchange="katYillariGetir()">
-              <option value="">Model Seçiniz</option>
-            </select>
-            <select id="katYilSecim" style="flex:1; min-width:150px;">
-              <option value="">Yıl Seçiniz</option>
-            </select>
-            <button onclick="kategoriUrunleriGetir()">Ürünleri Listele</button>
-          </div>
+        <div class="arama-cubugu" style="flex-wrap:wrap;">
+          <select id="katMarkaSecim" style="flex:1; min-width:140px;" onchange="katModelleriGetir()">
+            <option value="">Marka Seçiniz</option>
+          </select>
+          <select id="katModelSecim" style="flex:1; min-width:140px;" onchange="katYillariGetir()">
+            <option value="">Model Seçiniz</option>
+          </select>
+          <select id="katYilSecim" style="flex:1; min-width:120px;">
+            <option value="">Yıl Seçiniz</option>
+          </select>
+          <button onclick="kategoriUrunleriGetir()">Filtrele</button>
         </div>
 
-        <div class="arama-cubugu" style="flex-direction:column; align-items:stretch; gap:14px; margin-top:16px;">
-          <h3 style="font-size:15px; color:var(--navy); margin:0;">🔑 Şase No (VIN) ile Ara</h3>
+        <div class="arama-cubugu" style="flex-direction:column; align-items:stretch; gap:8px;">
           <div style="display:flex; gap:10px; flex-wrap:wrap;">
-            <input type="text" id="vinGiris" placeholder="17 haneli şase numarasını girin" maxlength="17" style="flex:1; min-width:220px; padding:12px 16px; border:1px solid var(--border); border-radius:8px; font-size:14px; text-transform:uppercase;">
-            <button onclick="vinCoz()">Şase Numarasını Çöz</button>
+            <input type="text" id="vinGiris" placeholder="🔑 17 haneli şase numarasını (VIN) girin" maxlength="17" style="flex:1; min-width:220px; padding:12px 16px; border:1px solid var(--border); border-radius:8px; font-size:14px; text-transform:uppercase;">
+            <button onclick="vinCoz()">Şase No ile Ara</button>
           </div>
           <p id="vinSonucMesaji" style="font-size:13px; color:var(--text-muted); margin:0;"></p>
         </div>
 
-        <div id="kategoriSonuclar" class="urun-grid" style="margin-top:20px;"></div>
+        <div id="sonuclar" class="urun-grid"></div>
       </div>
 
       <!-- SEPET SEKMESİ -->
@@ -512,7 +503,6 @@
 
     const sekmeBasliklari = {
       arama: "Ürün Arama",
-      kategoriler: "Kategoriler",
       sepet: "Sepetim",
       siparis: "Siparişlerim",
       hesap: "Hesabım",
@@ -521,8 +511,8 @@
     };
 
     async function sekmeGoster(hangisi) {
-      const sekmeler = { arama: "aramaSekmesi", kategoriler: "kategorilerSekmesi", sepet: "sepetSekmesi", siparis: "siparisSekmesi", hesap: "hesapSekmesi", ayarlar: "ayarlarSekmesi", pos: "posSekmesi" };
-      const navlar = { arama: "navArama", kategoriler: "navKategoriler", sepet: "navSepet", siparis: "navSiparis", hesap: "navHesap", ayarlar: "navAyarlar", pos: "navPos" };
+      const sekmeler = { arama: "aramaSekmesi", sepet: "sepetSekmesi", siparis: "siparisSekmesi", hesap: "hesapSekmesi", ayarlar: "ayarlarSekmesi", pos: "posSekmesi" };
+      const navlar = { arama: "navArama", sepet: "navSepet", siparis: "navSiparis", hesap: "navHesap", ayarlar: "navAyarlar", pos: "navPos" };
 
       Object.keys(sekmeler).forEach(function(key) {
         document.getElementById(sekmeler[key]).classList.remove("aktif-icerik");
@@ -537,7 +527,6 @@
       if (hangisi === 'siparis') siparislerimGetir();
       if (hangisi === 'sepet') bayiBilgisiniTazele();
       if (hangisi === 'ayarlar') { await bayiBilgisiniTazele(); ayarlariDoldur(); }
-      if (hangisi === 'kategoriler') kategorileriYukle();
     }
 
     async function girisYap() {
@@ -580,6 +569,7 @@
       document.getElementById("topbarAvatar").innerText = girisYapanBayi.firma_adi.charAt(0).toUpperCase();
 
       bayiBilgisiniTazele();
+      kategorileriYukle();
     }
 
     // Admin panelinden yapılan güncellemeleri (bakiye, kredi limiti vb.) yakalamak için
@@ -737,7 +727,7 @@
       const marka = document.getElementById("katMarkaSecim").value;
       const model = document.getElementById("katModelSecim").value;
       const yil = document.getElementById("katYilSecim").value;
-      const alan = document.getElementById("kategoriSonuclar");
+      const alan = document.getElementById("sonuclar");
 
       if (!marka) {
         alert("Lütfen en azından bir marka seçin.");
@@ -761,7 +751,7 @@
     async function vinCoz() {
       const vinInput = document.getElementById("vinGiris");
       const mesajAlani = document.getElementById("vinSonucMesaji");
-      const sonucAlani = document.getElementById("kategoriSonuclar");
+      const sonucAlani = document.getElementById("sonuclar");
       const vin = vinInput.value.trim().toUpperCase();
 
       if (vin.length !== 17) {
