@@ -197,10 +197,11 @@
             <input type="text" id="yetkiliKisiGiris" placeholder="Yetkili Kişi">
             <input type="text" id="telefonGiris" placeholder="Telefon">
             <input type="text" id="bKullaniciAdiGiris" placeholder="Kullanıcı Adı">
-            <input type="text" id="bSifreGiris" placeholder="Şifre">
+            <input type="password" id="bSifreGiris" placeholder="Şifre">
             <input type="number" id="bakiyeGiris" placeholder="Bakiye (TL)">
             <input type="number" id="krediLimitiGiris" placeholder="Kredi Limiti (TL)">
           </div>
+          <p id="bSifreYardim" style="font-size:12px; color:var(--text-muted); margin-top:-6px; margin-bottom:10px;"></p>
           <div class="form-butonlar">
             <button class="ekle-btn" onclick="bayiKaydet()" id="bayiKaydetBtn">Bayiyi Ekle</button>
             <button onclick="bayiFormTemizle()" style="background:#999;">Temizle</button>
@@ -250,6 +251,17 @@
       return n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' TL';
     }
 
+    // Şifreyi SHA-256 ile hash'ler (tarayıcının kendi güvenlik özelliğini kullanır,
+    // dışarıdan hiçbir kütüphane eklemeye gerek yok). Girilen şifre asla düz metin
+    // olarak veritabanına gönderilmez veya sorgulanmaz.
+    async function sha256Hex(metin) {
+      const encoder = new TextEncoder();
+      const veri = encoder.encode(metin);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', veri);
+      const hashDizisi = Array.from(new Uint8Array(hashBuffer));
+      return hashDizisi.map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
     const sekmeBasliklari = {
       urunler: "Ürünler",
       bayiler: "Bayiler",
@@ -271,15 +283,23 @@
     }
 
     async function yoneticiGirisYap() {
-      const kullaniciAdi = document.getElementById("yKullaniciAdi").value;
-      const sifre = document.getElementById("ySifre").value;
+      const kullaniciAdi = document.getElementById("yKullaniciAdi").value.trim();
+      const sifre = document.getElementById("ySifre").value.trim();
       const hataAlani = document.getElementById("girisHata");
+      hataAlani.innerHTML = "";
+
+      if (!kullaniciAdi || !sifre) {
+        hataAlani.innerHTML = "Kullanıcı adı ve şifre boş olamaz.";
+        return;
+      }
+
+      const sifreHash = await sha256Hex(sifre);
 
       const { data, error } = await supabaseClient
         .from("yoneticiler")
         .select("*")
         .eq("kullanici_adi", kullaniciAdi)
-        .eq("sifre", sifre);
+        .eq("sifre", sifreHash);
 
       if (error || data.length === 0) {
         hataAlani.innerHTML = "Kullanıcı adı veya şifre hatalı.";
@@ -484,7 +504,11 @@
       document.getElementById("yetkiliKisiGiris").value = b.yetkili_kisi || "";
       document.getElementById("telefonGiris").value = b.telefon || "";
       document.getElementById("bKullaniciAdiGiris").value = b.kullanici_adi || "";
-      document.getElementById("bSifreGiris").value = b.sifre || "";
+      // Güvenlik nedeniyle şifre alanı artık BOŞ gösteriliyor (veritabanında düz metin
+      // değil hash tutuluyor). Bu bayinin şifresini değiştirmek istemiyorsan burayı
+      // boş bırakabilirsin, kaydettiğinde eski şifresi aynen kalır.
+      document.getElementById("bSifreGiris").value = "";
+      document.getElementById("bSifreYardim").innerText = "Şifreyi değiştirmek istemiyorsan bu alanı boş bırak.";
       document.getElementById("bakiyeGiris").value = b.bakiye || "";
       document.getElementById("krediLimitiGiris").value = b.kredi_limiti || "";
       document.getElementById("bayiFormBaslik").innerText = "Bayiyi Düzenle";
@@ -496,25 +520,42 @@
       document.getElementById("bayiDuzenleId").value = "";
       ["firmaAdiGiris","yetkiliKisiGiris","telefonGiris","bKullaniciAdiGiris","bSifreGiris","bakiyeGiris","krediLimitiGiris"]
         .forEach(id => document.getElementById(id).value = "");
+      document.getElementById("bSifreYardim").innerText = "";
       document.getElementById("bayiFormBaslik").innerText = "Yeni Bayi Ekle";
       document.getElementById("bayiKaydetBtn").innerText = "Bayiyi Ekle";
     }
 
     async function bayiKaydet() {
       const id = document.getElementById("bayiDuzenleId").value;
+      const girilenSifre = document.getElementById("bSifreGiris").value.trim();
+
       const kayit = {
         firma_adi: document.getElementById("firmaAdiGiris").value,
         yetkili_kisi: document.getElementById("yetkiliKisiGiris").value,
         telefon: document.getElementById("telefonGiris").value,
         kullanici_adi: document.getElementById("bKullaniciAdiGiris").value.trim(),
-        sifre: document.getElementById("bSifreGiris").value.trim(),
         bakiye: parseFloat(document.getElementById("bakiyeGiris").value) || 0,
         kredi_limiti: parseFloat(document.getElementById("krediLimitiGiris").value) || 0
       };
 
-      if (!kayit.firma_adi || !kayit.kullanici_adi || !kayit.sifre) {
-        alert("Firma adı, kullanıcı adı ve şifre boş olamaz.");
+      if (!kayit.firma_adi || !kayit.kullanici_adi) {
+        alert("Firma adı ve kullanıcı adı boş olamaz.");
         return;
+      }
+
+      if (id) {
+        // Bayi düzenleniyor: şifre kutusu boşsa mevcut şifreye dokunma,
+        // doluysa yeni şifreyi hash'leyip güncelle.
+        if (girilenSifre) {
+          kayit.sifre = await sha256Hex(girilenSifre);
+        }
+      } else {
+        // Yeni bayi ekleniyor: şifre zorunlu.
+        if (!girilenSifre) {
+          alert("Yeni bayi için şifre girilmesi zorunludur.");
+          return;
+        }
+        kayit.sifre = await sha256Hex(girilenSifre);
       }
 
       let hata;
