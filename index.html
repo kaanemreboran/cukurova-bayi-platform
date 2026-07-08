@@ -483,6 +483,12 @@
   <script>
     let girisYapanBayi = null;
     let sepet = [];
+    let tedarikcilerCache = [];
+
+    async function tedarikcileriYukle() {
+      const { data } = await supabaseClient.from("tedarikciler").select("*");
+      tedarikcilerCache = data || [];
+    }
 
     // Sayıyı "1.250,50 TL" formatında (Türkçe, kuruşlu) gösterir
     function paraFormat(sayi) {
@@ -570,6 +576,7 @@
 
       bayiBilgisiniTazele();
       kategorileriYukle();
+      tedarikcileriYukle();
     }
 
     // Admin panelinden yapılan güncellemeleri (bakiye, kredi limiti vb.) yakalamak için
@@ -629,6 +636,10 @@
         const kdvTutari = urun.fiyat * (kdvOrani / 100);
         const kdvliFiyat = urun.fiyat + kdvTutari;
         const eskiVarMi = urun.eski_fiyat && urun.eski_fiyat > 0;
+        const tedarikci = tedarikcilerCache.find(t => t.id === urun.tedarikci_id);
+        const kaynakEtiketi = tedarikci
+          ? `<span class="stok-etiket" style="background:#fff3e0; color:#b8860b;">🚚 ${tedarikci.tedarikci_adi} üzerinden temin edilir</span>`
+          : `<span class="stok-etiket stok-var">📦 Stokta, hemen kargo</span>`;
         const muadilButonu = urun.oem_kodu
           ? `<button class="duzenle-btn" style="width:100%; background:#2c6e91; margin-top:6px;" onclick="muadilGoster(${urun.id}, '${(urun.oem_kodu || '').replace(/'/g, "")}')">🔄 Muadil Ürünler</button>
              <div id="muadil-${urun.id}"></div>`
@@ -639,6 +650,7 @@
             <div class="urun-gorsel">${gorselIcerik}</div>
             <div class="urun-detay">
               <span class="stok-etiket ${stokVarMi ? 'stok-var' : 'stok-yok'}">${stokVarMi ? urun.stok_adet + ' adet stokta' : 'Stok yok'}</span>
+              ${kaynakEtiketi}
               <div class="ad">${urun.urun_adi}</div>
               <div class="meta">${urun.marka} | ${urun.model} | ${urun.yil}</div>
               <div class="meta">OEM: ${urun.oem_kodu || '-'}</div>
