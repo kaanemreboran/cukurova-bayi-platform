@@ -638,7 +638,7 @@
         const eskiVarMi = urun.eski_fiyat && urun.eski_fiyat > 0;
         const tedarikci = tedarikcilerCache.find(t => t.id === urun.tedarikci_id);
         const kaynakEtiketi = tedarikci
-          ? `<span class="stok-etiket" style="background:#fff3e0; color:#b8860b;">🚚 ${tedarikci.tedarikci_adi} üzerinden temin edilir</span>`
+          ? `<span class="stok-etiket" style="background:#fff3e0; color:#b8860b;">🚚 Sipariş üzerine temin edilir</span>`
           : `<span class="stok-etiket stok-var">📦 Stokta, hemen kargo</span>`;
         const muadilButonu = urun.oem_kodu
           ? `<button class="duzenle-btn" style="width:100%; background:#2c6e91; margin-top:6px;" onclick="muadilGoster(${urun.id}, '${(urun.oem_kodu || '').replace(/'/g, "")}')">🔄 Muadil Ürünler</button>
