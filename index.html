@@ -989,6 +989,13 @@
           durum: "beklemede",
           odeme_durumu: "Ödenmedi"
         });
+
+        // Stoktan düş
+        const { data: urunVeri } = await supabaseClient.from("urunler").select("stok_adet").eq("id", item.urunId).single();
+        if (urunVeri) {
+          const yeniStok = Math.max(0, (parseInt(urunVeri.stok_adet) || 0) - item.adet);
+          await supabaseClient.from("urunler").update({ stok_adet: yeniStok }).eq("id", item.urunId);
+        }
       }
 
       // Bakiyeyi sipariş tutarı (KDV dahil) kadar artır
