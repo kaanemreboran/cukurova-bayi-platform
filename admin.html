@@ -782,13 +782,14 @@
                 <option value="Ödendi" ${s.odeme_durumu === 'Ödendi' ? 'selected' : ''}>Ödendi</option>
               </select>
             </td>
+            <td><button class="sil-btn" onclick="siparisSil(${s.id})">Sil</button></td>
           </tr>
         `;
       });
 
       alan.innerHTML = `
         <table class="veri-tablosu">
-          <thead><tr><th>Tarih</th><th>Bayi</th><th>Ürün</th><th>Adet</th><th>Tutar</th><th>Sipariş Durumu</th><th>Ödeme Durumu</th></tr></thead>
+          <thead><tr><th>Tarih</th><th>Bayi</th><th>Ürün</th><th>Adet</th><th>Tutar</th><th>Sipariş Durumu</th><th>Ödeme Durumu</th><th>İşlem</th></tr></thead>
           <tbody>${satirlar}</tbody>
         </table>
       `;
@@ -799,6 +800,13 @@
       guncelleme[alan] = deger;
       const { error } = await supabaseClient.from("siparisler").update(guncelleme).eq("id", id);
       if (error) alert("Hata: " + error.message);
+    }
+
+    async function siparisSil(id) {
+      if (!confirm("Bu siparişi silmek istediğinize emin misiniz?\n\nNot: Bu işlem bayinin bakiyesini/hesap hareketlerini OTOMATİK değiştirmez. Gerekirse Hesap Hareketleri sekmesinden manuel düzeltme yapmanız gerekir.")) return;
+      const { error } = await supabaseClient.from("siparisler").delete().eq("id", id);
+      if (error) { alert("Hata: " + error.message); return; }
+      siparislerGetir();
     }
 
     /* ---------------- HESAP HAREKETLERİ ---------------- */
