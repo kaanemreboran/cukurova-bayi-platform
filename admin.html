@@ -270,6 +270,7 @@
     let urunlerCache = [];
     let bayilerCache = [];
     let tedarikcilerCache = [];
+    let siparislerCache = [];
 
     function paraFormat(sayi) {
       const n = Number(sayi) || 0;
@@ -748,6 +749,7 @@
 
       if (siparisSonuc.error) { alan.innerHTML = "Hata: " + siparisSonuc.error.message; return; }
       const data = siparisSonuc.data;
+      siparislerCache = data;
 
       if (bayilerCache.length === 0) {
         const bayiSonuc = await supabaseClient.from("bayiler").select("*");
@@ -777,7 +779,7 @@
               </select>
             </td>
             <td>
-              <select class="durum-secim" onchange="siparisDurumGuncelle(${s.id}, 'odeme_durumu', this.value)">
+              <select class="durum-secim" onchange="siparisOdemeDurumuGuncelle(${s.id}, this.value)">
                 <option value="Ödenmedi" ${s.odeme_durumu === 'Ödenmedi' ? 'selected' : ''}>Ödenmedi</option>
                 <option value="Ödendi" ${s.odeme_durumu === 'Ödendi' ? 'selected' : ''}>Ödendi</option>
               </select>
@@ -802,10 +804,74 @@
       if (error) alert("Hata: " + error.message);
     }
 
+    // Bir bayinin bakiyesini borç/alacak kadar günceller VE hesap_hareketleri'ne
+    // izlenebilir bir kayıt düşer (Hesap Hareketleri sekmesinde görünsün diye).
+    async function bakiyeGuncelleVeHareketEkle(bayiId, borc, alacak, aciklama) {
+      await supabaseClient.from("hesap_hareketleri").insert({
+        bayi_id: bayiId,
+        tarih: new Date().toISOString().split("T")[0],
+        aciklama: aciklama,
+        evrak_no: "",
+        borc: borc,
+        alacak: alacak
+      });
+
+      const { data } = await supabaseClient.from("bayiler").select("bakiye").eq("id", bayiId).single();
+      if (data) {
+        const yeniBakiye = (parseFloat(data.bakiye) || 0) + borc - alacak;
+        await supabaseClient.from("bayiler").update({ bakiye: yeniBakiye }).eq("id", bayiId);
+        const bayiCacheKaydi = bayilerCache.find(b => b.id === bayiId);
+        if (bayiCacheKaydi) bayiCacheKaydi.bakiye = yeniBakiye;
+      }
+    }
+
+    // Ödeme durumu değiştiğinde bakiyeyi de gerçekten günceller:
+    // Ödenmedi -> Ödendi: borç azalır (alacak kaydı düşer)
+    // Ödendi -> Ödenmedi: borç geri eklenir (yanlışlıkla "Ödendi" yapılmışsa düzeltme için)
+    async function siparisOdemeDurumuGuncelle(id, yeniDurum) {
+      const siparis = siparislerCache.find(s => s.id === id);
+      if (!siparis) return;
+
+      const eskiDurum = siparis.odeme_durumu || "Ödenmedi";
+      const tutar = parseFloat(siparis.tutar) || 0;
+
+      const { error } = await supabaseClient.from("siparisler").update({ odeme_durumu: yeniDurum }).eq("id", id);
+      if (error) { alert("Hata: " + error.message); return; }
+      siparis.odeme_durumu = yeniDurum;
+
+      if (tutar > 0 && eskiDurum !== "Ödendi" && yeniDurum === "Ödendi") {
+        await bakiyeGuncelleVeHareketEkle(siparis.bayi_id, 0, tutar, `Ödeme Alındı - ${siparis.urun_adi || 'Sipariş'} (#${id})`);
+      } else if (tutar > 0 && eskiDurum === "Ödendi" && yeniDurum !== "Ödendi") {
+        await bakiyeGuncelleVeHareketEkle(siparis.bayi_id, tutar, 0, `Ödeme Geri Alındı (Düzeltme) - ${siparis.urun_adi || 'Sipariş'} (#${id})`);
+      }
+    }
+
     async function siparisSil(id) {
-      if (!confirm("Bu siparişi silmek istediğinize emin misiniz?\n\nNot: Bu işlem bayinin bakiyesini/hesap hareketlerini OTOMATİK değiştirmez. Gerekirse Hesap Hareketleri sekmesinden manuel düzeltme yapmanız gerekir.")) return;
+      const siparis = siparislerCache.find(s => s.id === id);
+      if (!confirm("Bu siparişi silmek istediğinize emin misiniz?\n\nNot: Ürünün stoğu geri eklenecek. Sipariş henüz ödenmemişse, tutarı otomatik olarak bayinin borcundan da düşülecek.")) return;
+
       const { error } = await supabaseClient.from("siparisler").delete().eq("id", id);
       if (error) { alert("Hata: " + error.message); return; }
+
+      if (siparis) {
+        // Stoğu geri ekle
+        if (siparis.urun_id && siparis.adet) {
+          const { data: urunVeri } = await supabaseClient.from("urunler").select("stok_adet").eq("id", siparis.urun_id).single();
+          if (urunVeri) {
+            const yeniStok = (parseInt(urunVeri.stok_adet) || 0) + parseInt(siparis.adet);
+            await supabaseClient.from("urunler").update({ stok_adet: yeniStok }).eq("id", siparis.urun_id);
+          }
+        }
+
+        // Ödenmemişse borcu da düş
+        if (siparis.odeme_durumu !== "Ödendi") {
+          const tutar = parseFloat(siparis.tutar) || 0;
+          if (tutar > 0) {
+            await bakiyeGuncelleVeHareketEkle(siparis.bayi_id, 0, tutar, `Sipariş Silindi - ${siparis.urun_adi || ''} (#${id})`);
+          }
+        }
+      }
+
       siparislerGetir();
     }
 
