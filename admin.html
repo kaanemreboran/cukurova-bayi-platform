@@ -147,6 +147,7 @@
       <span>Yönetim Paneli</span>
     </div>
     <div class="nav-item aktif" onclick="sekmeGoster('urunler')">📦 Ürünler</div>
+    <div class="nav-item" onclick="sekmeGoster('tedarikciler')">🚚 Tedarikçiler</div>
     <div class="nav-item" onclick="sekmeGoster('bayiler')">🏢 Bayiler</div>
     <div class="nav-item" onclick="sekmeGoster('siparisler')">🧾 Siparişler</div>
     <div class="nav-item" onclick="sekmeGoster('hesaplar')">💳 Hesap Hareketleri</div>
@@ -178,6 +179,9 @@
             <input type="number" id="eskiFiyatGiris" placeholder="Eski Fiyat (kampanya için, opsiyonel)">
             <input type="number" id="kritikStokGiris" placeholder="Kritik Stok Eşiği (varsayılan 5)">
             <input type="number" id="kdvOraniGiris" placeholder="KDV Oranı % (varsayılan 20)">
+            <select id="tedarikciSecim">
+              <option value="">Kaynak: Kendi Stoğumuz</option>
+            </select>
           </div>
           <div class="form-butonlar">
             <button class="ekle-btn" onclick="urunKaydet()" id="urunKaydetBtn">Ürünü Ekle</button>
@@ -185,6 +189,26 @@
           </div>
         </div>
         <div id="urunlerTabloAlani">Yükleniyor...</div>
+      </div>
+
+      <!-- TEDARİKÇİLER -->
+      <div id="tedarikcilerSekmesi" class="sekme-icerik">
+        <div class="form-kutu">
+          <h3 id="tedarikciFormBaslik">Yeni Tedarikçi Ekle</h3>
+          <input type="hidden" id="tedarikciDuzenleId">
+          <div class="form-grid">
+            <input type="text" id="tedarikciAdiGiris" placeholder="Tedarikçi Adı (örn: Dinamik Otomotiv)">
+            <select id="tedarikciAktifGiris">
+              <option value="true">Aktif</option>
+              <option value="false">Pasif</option>
+            </select>
+          </div>
+          <div class="form-butonlar">
+            <button class="ekle-btn" onclick="tedarikciKaydet()" id="tedarikciKaydetBtn">Tedarikçiyi Ekle</button>
+            <button onclick="tedarikciFormTemizle()" style="background:#999;">Temizle</button>
+          </div>
+        </div>
+        <div id="tedarikcilerTabloAlani">Yükleniyor...</div>
       </div>
 
       <!-- BAYİLER -->
@@ -245,6 +269,7 @@
     let yonetici = null;
     let urunlerCache = [];
     let bayilerCache = [];
+    let tedarikcilerCache = [];
 
     function paraFormat(sayi) {
       const n = Number(sayi) || 0;
@@ -264,6 +289,7 @@
 
     const sekmeBasliklari = {
       urunler: "Ürünler",
+      tedarikciler: "Tedarikçiler",
       bayiler: "Bayiler",
       siparisler: "Siparişler",
       hesaplar: "Hesap Hareketleri"
@@ -277,6 +303,7 @@
       document.getElementById("topbarBaslik").innerText = sekmeBasliklari[hangisi];
 
       if (hangisi === 'urunler') urunleriGetir();
+      if (hangisi === 'tedarikciler') tedarikcileriGetir();
       if (hangisi === 'bayiler') bayileriGetir();
       if (hangisi === 'siparisler') siparislerGetir();
       if (hangisi === 'hesaplar') hesapSekmesiHazirla();
@@ -343,6 +370,14 @@
       const alan = document.getElementById("urunlerTabloAlani");
       alan.innerHTML = "Yükleniyor...";
 
+      if (tedarikcilerCache.length === 0) {
+        const tedarikciSonuc = await supabaseClient.from("tedarikciler").select("*").order("tedarikci_adi");
+        tedarikcilerCache = tedarikciSonuc.data || [];
+      }
+      const tedarikciSecim = document.getElementById("tedarikciSecim");
+      tedarikciSecim.innerHTML = '<option value="">Kaynak: Kendi Stoğumuz</option>' +
+        tedarikcilerCache.map(t => `<option value="${t.id}">Kaynak: ${t.tedarikci_adi}</option>`).join("");
+
       const { data, error } = await supabaseClient.from("urunler").select("*").order("id", { ascending: false });
       if (error) { alan.innerHTML = "Hata: " + error.message; return; }
 
@@ -358,6 +393,8 @@
         const kdvOrani = u.kdv_orani != null ? u.kdv_orani : 20;
         const kdvTutari = u.fiyat * (kdvOrani / 100);
         const toplamFiyat = u.fiyat + kdvTutari;
+        const tedarikci = tedarikcilerCache.find(t => t.id === u.tedarikci_id);
+        const kaynakMetni = tedarikci ? `🚚 ${tedarikci.tedarikci_adi}` : "📦 Kendi Stoğumuz";
         satirlar += `
           <tr ${satirStili}>
             <td>${u.urun_adi}</td>
@@ -368,6 +405,7 @@
             <td>${u.eski_fiyat ? `<s style="color:#999;">${paraFormat(u.eski_fiyat)}</s><br>` : ''}${paraFormat(u.fiyat)}</td>
             <td>%${kdvOrani}<br>${paraFormat(kdvTutari)}</td>
             <td><strong>${paraFormat(toplamFiyat)}</strong></td>
+            <td style="font-size:12px;">${kaynakMetni}</td>
             <td class="aksiyonlar">
               <button class="duzenle-btn" onclick="urunDuzenle(${u.id})">Düzenle</button>
               <button class="sil-btn" onclick="urunSil(${u.id})">Sil</button>
@@ -378,7 +416,7 @@
 
       alan.innerHTML = `
         <table class="veri-tablosu">
-          <thead><tr><th>Ürün Adı</th><th>OEM Kod</th><th>Marka</th><th>Model</th><th>Stok</th><th>Fiyat</th><th>KDV</th><th>Toplam Fiyat</th><th>İşlem</th></tr></thead>
+          <thead><tr><th>Ürün Adı</th><th>OEM Kod</th><th>Marka</th><th>Model</th><th>Stok</th><th>Fiyat</th><th>KDV</th><th>Toplam Fiyat</th><th>Kaynak</th><th>İşlem</th></tr></thead>
           <tbody>${satirlar}</tbody>
         </table>
       `;
@@ -399,6 +437,7 @@
       document.getElementById("eskiFiyatGiris").value = u.eski_fiyat || "";
       document.getElementById("kritikStokGiris").value = u.kritik_stok || "";
       document.getElementById("kdvOraniGiris").value = u.kdv_orani != null ? u.kdv_orani : 20;
+      document.getElementById("tedarikciSecim").value = u.tedarikci_id || "";
       document.getElementById("urunFormBaslik").innerText = "Ürünü Düzenle";
       document.getElementById("urunKaydetBtn").innerText = "Güncelle";
       window.scrollTo(0, 0);
@@ -408,12 +447,14 @@
       document.getElementById("urunDuzenleId").value = "";
       ["urunAdiGiris","oemKoduGiris","markaGiris","modelGiris","yilGiris","stokGiris","fiyatGiris","resimUrlGiris","eskiFiyatGiris","kritikStokGiris","kdvOraniGiris"]
         .forEach(id => document.getElementById(id).value = "");
+      document.getElementById("tedarikciSecim").value = "";
       document.getElementById("urunFormBaslik").innerText = "Yeni Ürün Ekle";
       document.getElementById("urunKaydetBtn").innerText = "Ürünü Ekle";
     }
 
     async function urunKaydet() {
       const id = document.getElementById("urunDuzenleId").value;
+      const tedarikciDegeri = document.getElementById("tedarikciSecim").value;
       const kayit = {
         urun_adi: document.getElementById("urunAdiGiris").value,
         oem_kodu: document.getElementById("oemKoduGiris").value,
@@ -425,7 +466,8 @@
         resim_url: document.getElementById("resimUrlGiris").value,
         eski_fiyat: document.getElementById("eskiFiyatGiris").value ? parseFloat(document.getElementById("eskiFiyatGiris").value) : null,
         kritik_stok: parseInt(document.getElementById("kritikStokGiris").value) || 5,
-        kdv_orani: document.getElementById("kdvOraniGiris").value ? parseFloat(document.getElementById("kdvOraniGiris").value) : 20
+        kdv_orani: document.getElementById("kdvOraniGiris").value ? parseFloat(document.getElementById("kdvOraniGiris").value) : 20,
+        tedarikci_id: tedarikciDegeri ? parseInt(tedarikciDegeri) : null
       };
 
       if (!kayit.urun_adi) { alert("Ürün adı boş olamaz."); return; }
@@ -450,6 +492,90 @@
       const { error } = await supabaseClient.from("urunler").delete().eq("id", id);
       if (error) { alert("Hata: " + error.message); return; }
       urunleriGetir();
+    }
+
+    /* ---------------- TEDARİKÇİLER ---------------- */
+    async function tedarikcileriGetir() {
+      const alan = document.getElementById("tedarikcilerTabloAlani");
+      alan.innerHTML = "Yükleniyor...";
+
+      const { data, error } = await supabaseClient.from("tedarikciler").select("*").order("id", { ascending: false });
+      if (error) { alan.innerHTML = "Hata: " + error.message; return; }
+
+      tedarikcilerCache = data;
+
+      if (data.length === 0) { alan.innerHTML = "<p>Henüz tedarikçi eklenmemiş.</p>"; return; }
+
+      let satirlar = "";
+      data.forEach(function(t) {
+        satirlar += `
+          <tr>
+            <td>${t.tedarikci_adi}</td>
+            <td>${t.aktif ? '✅ Aktif' : '❌ Pasif'}</td>
+            <td class="aksiyonlar">
+              <button class="duzenle-btn" onclick="tedarikciDuzenle(${t.id})">Düzenle</button>
+              <button class="sil-btn" onclick="tedarikciSil(${t.id})">Sil</button>
+            </td>
+          </tr>
+        `;
+      });
+
+      alan.innerHTML = `
+        <table class="veri-tablosu">
+          <thead><tr><th>Tedarikçi Adı</th><th>Durum</th><th>İşlem</th></tr></thead>
+          <tbody>${satirlar}</tbody>
+        </table>
+      `;
+    }
+
+    function tedarikciDuzenle(id) {
+      const t = tedarikcilerCache.find(x => x.id === id);
+      if (!t) return;
+      document.getElementById("tedarikciDuzenleId").value = t.id;
+      document.getElementById("tedarikciAdiGiris").value = t.tedarikci_adi || "";
+      document.getElementById("tedarikciAktifGiris").value = t.aktif ? "true" : "false";
+      document.getElementById("tedarikciFormBaslik").innerText = "Tedarikçiyi Düzenle";
+      document.getElementById("tedarikciKaydetBtn").innerText = "Güncelle";
+      window.scrollTo(0, 0);
+    }
+
+    function tedarikciFormTemizle() {
+      document.getElementById("tedarikciDuzenleId").value = "";
+      document.getElementById("tedarikciAdiGiris").value = "";
+      document.getElementById("tedarikciAktifGiris").value = "true";
+      document.getElementById("tedarikciFormBaslik").innerText = "Yeni Tedarikçi Ekle";
+      document.getElementById("tedarikciKaydetBtn").innerText = "Tedarikçiyi Ekle";
+    }
+
+    async function tedarikciKaydet() {
+      const id = document.getElementById("tedarikciDuzenleId").value;
+      const kayit = {
+        tedarikci_adi: document.getElementById("tedarikciAdiGiris").value.trim(),
+        aktif: document.getElementById("tedarikciAktifGiris").value === "true"
+      };
+
+      if (!kayit.tedarikci_adi) { alert("Tedarikçi adı boş olamaz."); return; }
+
+      let hata;
+      if (id) {
+        const sonuc = await supabaseClient.from("tedarikciler").update(kayit).eq("id", id);
+        hata = sonuc.error;
+      } else {
+        const sonuc = await supabaseClient.from("tedarikciler").insert(kayit);
+        hata = sonuc.error;
+      }
+
+      if (hata) { alert("Hata: " + hata.message); return; }
+
+      tedarikciFormTemizle();
+      tedarikcileriGetir();
+    }
+
+    async function tedarikciSil(id) {
+      if (!confirm("Bu tedarikçiyi silmek istediğinize emin misiniz? Bu tedarikçiye bağlı ürünler 'Kendi Stoğumuz' haline dönmez, elle güncellemeniz gerekir.")) return;
+      const { error } = await supabaseClient.from("tedarikciler").delete().eq("id", id);
+      if (error) { alert("Hata: " + error.message); return; }
+      tedarikcileriGetir();
     }
 
     /* ---------------- BAYİLER ---------------- */
